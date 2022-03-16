@@ -1,0 +1,80 @@
+// Change image
+
+
+function repl_pic(pic, num) {
+    return pic.replace(/img\d+/, 'img' + num)
+}
+
+var img_up_dwn = function(arg){
+
+    /*
+    Go up and down in the images..
+    */
+
+    //alert('arg is ' + arg)
+
+    //--------
+
+    var curr_pic = $('#curr_proc_pic').attr('src').split('?')[0]
+    //alert('curr_pic ' + curr_pic )
+    if (curr_pic.match(/superp/) == null){
+
+        // image index
+        
+        img_index = curr_pic.match(/img(\d+?)\.png/)[1]
+      }
+    else{
+
+        // image index for images with prediction
+
+        img_index = curr_pic.match(/img(\d+?)_superp.png/)[1]
+        //alert('In img_up_dwn, img_index is ' + img_index)
+    }
+    //alert('curr_pic ' + curr_pic + 'img_index ' + img_index)
+
+    //--------
+
+    var num = parseInt(img_index)
+    //alert("In img_up_dwn, num is " + num)
+
+    // init image index indicator
+
+    $('#win_num_im').text(num + '/' + max_nb_im)
+
+    //--------
+
+    if (arg == 'down'){ if (num > 0){
+          curr_pic = repl_pic(curr_pic, num-1)
+          //alert( 'max_nb_im is ' + max_nb_im )
+          } }                             // decrement
+    else if (arg == 'up') { if (num < max_nb_im-1) {
+           curr_pic =  repl_pic(curr_pic, num+1)
+           //alert( 'max_nb_im is ' + max_nb_im )
+
+          }  }            // increment
+    $('#curr_proc_pic').attr('src', curr_pic + '?' + new Date().getTime())
+
+    if (curr_pic.match(/superp/) == null){
+
+        // refresh frame index
+
+        img_index = curr_pic.match(/img(\d+?)\.png/)[1]
+      }
+    else{
+        img_index = curr_pic.match(/img(\d+?)_superp.png/)[1]
+        //alert('After change img_up_dwn, img_index is ' + img_index)
+    }
+
+    // slider follows
+
+    $("#pospic").bootstrapSlider('setValue', img_index)
+
+}
+
+var img_dir = null;
+
+function change_pic(delay, dir){
+               //alert('delay ' + delay + ' dir ' +dir)
+               img_dir = setInterval(function(){ img_up_dwn(dir) }, delay)
+
+                }

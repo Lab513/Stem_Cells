@@ -1,0 +1,23 @@
+//------------------- Bootstrap slider for the pics
+
+$('#pospic').bootstrapSlider({                                                       // Bootstrap slider
+     formatter: function(num) {
+
+           var curr_pic = $('#curr_proc_pic').attr('src').split('?')[0]
+           //alert('curr_pic is ' + curr_pic)
+           $('#slider_value').text(num)
+           var curr_pic = repl_pic(curr_pic, num)
+           $('#curr_proc_pic').attr('src', curr_pic + '?' + new Date().getTime())
+           $('#win_num_im').text(num + '/' + max_nb_im)
+
+           if (curr_pic.match(/superp/) == null){
+               img_index = curr_pic.match(/img(\d+?)\.png/)[1]                            // refresh frame index
+             }
+           else{
+              img_index = curr_pic.match(/img(\d+?)_superp.png/)[1]
+              //alert('img_index is ' + img_index)
+           }
+
+           return 'Current value: ' + num;
+         }
+});

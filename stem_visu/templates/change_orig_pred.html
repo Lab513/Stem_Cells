@@ -1,0 +1,39 @@
+//------------------- Chose original or with prediction
+
+// Change between orig and pred
+
+function repl_origpred(pic, kind) {
+
+    if (kind == 'to_orig'){
+       //alert('show original image..')
+       return pic.replace(/_superp/, '')                  // change kind of image
+    }
+
+    else if (kind == 'superp'){
+         //alert('show with predictions..')
+         return pic.replace(/\.png/, '_superp.png')      // change kind of image
+    }
+
+}
+
+function swap_pics(){
+
+      //alert('changing !!')
+      var curr_pic = $('#curr_proc_pic').attr('src').split('?')[0]
+      if (curr_pic.match(/superp/) != null){
+         curr_pic = repl_origpred(curr_pic, 'to_orig')
+      }
+      else{
+         curr_pic = repl_origpred(curr_pic, 'superp')
+      }
+      $('#curr_proc_pic').attr('src', curr_pic + '?' + new Date().getTime())
+
+}
+
+// select how images are read (BF or BF+pred)
+
+$('#orig_or_pred').on('change', function() {
+
+      swap_pics()
+
+});

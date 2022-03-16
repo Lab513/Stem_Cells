@@ -1,0 +1,7 @@
+14/2/22
+
+on the fly
+goal : attain the same quality than code "in mem"
+try to play on the transformations.. 
+does the diff (on fly worse) comes from entry of unet is 1
+  for on fly whereas it is 3 for in mem ??

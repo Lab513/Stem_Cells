@@ -1,0 +1,14 @@
+//------------------- Mouse position
+
+$("#curr_proc_pic").click(function(e){                                               // mouse position
+    var parentOffset = $(this).parent().offset();
+    //or $(this).offset(); if you really just want the current element's offset
+    var x = e.pageX - parentOffset.left;
+    var y = e.pageY - parentOffset.top;
+    //var mouse_pos = 'frame ' + img_index + ' x ' + x + ' y ' + y                   // frame index , x, y
+    var dic_frm_pos = { 'frame': img_index , 'x': x , 'y': y }
+    str_frm_pos = JSON.stringify(dic_frm_pos)
+    //$('#mouse_pos').text(mouse_pos)
+    socket.emit("mouse_pos", str_frm_pos)
+
+})

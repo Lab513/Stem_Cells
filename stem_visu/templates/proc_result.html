@@ -1,0 +1,63 @@
+<!-- Panel for visulizing the processings -->
+
+<!-- inserted in index_folder.html -->
+
+<div class='wells_panel' > </div>
+
+<script>
+
+  {% include 'plate.html' %}
+
+  {% include 'plate_interactions.html' %}
+
+</script>
+
+
+<div class='nbcells_panel' >
+
+     <img id="nbcells_pic" style="line-height : 20px;" ></img>
+      <!-- include 'graph_d3.html'   -->
+
+</div>
+
+<script> $('.nbcells_panel').draggable() </script>
+
+{% include 'image_panel.html' %}
+
+<div id="view_options">
+
+        {% include 'click_or_hover.html' %}
+
+        {% include 'orig_or_pred.html' %}
+
+</div>
+<!-- actions on the panel for processed images -->
+
+<script >
+
+  $(document).ready(function(){
+
+           var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+           socket.on('response', function(mess){})
+
+           {% include 'init_analyse.html' %}
+
+           {% include 'change_pic.html' %}
+
+           {% include 'arrows_interactions.html' %}
+
+           {% include 'slider_for_pics.html' %}
+
+           {% include 'mouse_pos.html' %}
+
+           {% include 'change_orig_pred.html' %}
+
+           {% include 'hover_to_BF.html' %}
+
+
+
+
+  });
+
+</script>

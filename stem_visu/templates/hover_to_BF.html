@@ -1,0 +1,15 @@
+
+$('#hoverBFpred').change( function(){
+
+    if ( $(this).is(':checked') ){
+
+      $('#curr_proc_pic').mouseenter(function(){ swap_pics()  })
+                         .mouseleave(function(){ swap_pics()  })
+        }
+    else{
+
+      $('#curr_proc_pic').unbind()
+
+    }
+
+})

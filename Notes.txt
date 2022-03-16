@@ -1,0 +1,21 @@
+64 & 71 reserved for training, the rest for tests
+
+14/2/22
+
+test stem_few w/ on the fly
+
+bad results in comparison with models with in mem training.. 
+shapes gluing, noise, false positives.. etc.. 
+few models:
+stem_few-ep5-bs4_date14-02-2022-10-25
+stem_few-ep20-bs4_date14-02-2022-10-58
+stem_few-ep30-bs4_date14-02-2022-12-43
+stem_few-ep30-bs4_date14-02-2022-13-17
+
+The 2 models
+stem_few-ep30-bs4_date06-01-2022-17-58
+stem_few-ep40-bs4_date07-01-2022-19-48
+
+give quite good results.. 
+In spite of having been train on only few cells, 
+The results are not so far from the models of july and september.. 

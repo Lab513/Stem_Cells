@@ -1,0 +1,40 @@
+// Change of well
+
+
+function repl_well(pic, well_id) {
+
+    return pic.replace(/pred_\w\d+/, 'pred_' + well_id)                 // change the well
+}
+
+// Change of well for nbcells image
+
+function repl_well_img_nbcells(pic, well_id) {
+
+    return pic.replace(/\w\d+,/, well_id +',')                          // change the well for nb_cells
+}
+
+
+$('.well_content').click(function(){
+     //alert($(this).attr('id'))
+     var well_id = $(this).attr('id')
+     $('#curr_well').text(well_id)
+
+     curr_well = well_id                                                 // change curr_well
+
+      //---------- control image of the well
+
+     var curr_pic = $('#curr_proc_pic').attr('src').split('?')[0]
+     curr_pic = repl_well(curr_pic, well_id)
+     $('#curr_proc_pic').attr('src', curr_pic + '?' + new Date().getTime())        // change the control pic
+
+     //---------- nb of cells
+
+     var curr_nbcells_pic = $('#nbcells_pic').attr('src').split('?')[0]
+     curr_nbcells_pic = repl_well_img_nbcells(curr_nbcells_pic, well_id)
+     $('#nbcells_pic').attr('src', curr_nbcells_pic + '?' + new Date().getTime())    // change the pic with nb of cells
+     $('.well_content').parent().css({'border':'unset'})
+     $(this).parent().css({ 'border' : 'dashed red' })
+})
+
+
+{% include 'move_in_plate_with_keys.html' %}

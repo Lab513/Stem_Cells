@@ -1,0 +1,20 @@
+symbol: global
+
+DS_Store
+
+models/
+results/
+*.pyc
+
+
+# jupyter
+*.ipynb_checkpoints/
+*Copy*.ipynb
+
+# images
+*.tif
+*.tiff
+*.jpg
+*.avi
+*.png
+stem_visu/static/results

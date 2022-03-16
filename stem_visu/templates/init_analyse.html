@@ -1,0 +1,59 @@
+max_nb_im = 0
+$('#curr_proc_pic').attr('src', 'static/results/pred_A2/img0.png') // default
+
+// nb max imgs
+
+socket.on('nb_pics', function(nb_pics){
+    max_nb_im = nb_pics
+    $('#win_num_im').text('0/' + max_nb_im)               // initial position
+    //alert('nb_pics is ' + nb_pics)
+    $("#pospic").bootstrapSlider('setAttribute', 'max', max_nb_im-1)                  // slider size
+    $('#pospic').bootstrapSlider('refresh')
+ })                                                     // number of images
+img_index = 0                                           // current image index
+
+// Retrieve the processed wells
+
+socket.on('lwells', function(lwells){
+    var list_wells = JSON.parse(lwells)
+    //alert('list_wells is ' + list_wells)
+    curr_well = list_wells[0]
+    $('#' + curr_well).parent().css({ 'border' : 'dashed red' })
+    $('#curr_well').text(curr_well)
+    $('#curr_proc_pic').attr('src', 'static/results/pred_' + curr_well + '/img0.png')
+
+    $('#nbcells_pic').attr('src', 'static/results/well ' + curr_well + ', threshold 100 .png')
+    $('#nbcells_pic').css({
+           'width' : '100%',
+           'height' : '100%'
+    });
+
+
+  // Color in black unprocessed wells ..
+
+  $('.well_unit').css({'background-color':'black'})
+  for (w of list_wells){
+       $('#' + w).parent().css({'background-color':'white'})
+    }
+ })
+
+ // nb cells max per well
+
+ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
+     var dic_nb_max = JSON.parse(dic_nb_cells_max)
+
+     // Colorspace
+
+     // cs = chroma.scale(['yellow', '008ae5'])           // from yellow to blue
+     cs = chroma.scale('OrRd').padding([0.2, 0])
+     // https://gka.github.io/chroma.js/#installation
+
+     for (const [w, nbmax] of Object.entries(dic_nb_max)) {
+
+        // Color level according to the number max of cells
+
+        $('#' + w).parent().css({'background-color': cs(nbmax/20).toString() })
+
+      }
+
+  })

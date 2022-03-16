@@ -1,0 +1,19 @@
+var spacing = 40
+var offset = 20
+lh = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+lv = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+for (i=0; i<8; i++){
+   for (j=0; j<12; j++){
+      var well_id = lh[i] + lv[j]
+      var new_well = $('<div/>').addClass('well_unit')
+                                .css({ 'top': offset + spacing*j+'px' ,
+                                          'left': offset + spacing*i+'px' })
+                                .append($('<div/>').addClass('well_content')
+                                                    .text(well_id)
+                                                    .attr('id', well_id)
+                                                 )
+      $('.wells_panel').append(new_well)                           // append the well
+
+   }
+
+}

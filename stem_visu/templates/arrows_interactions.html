@@ -1,0 +1,41 @@
+var pic_speed = 80                                                                       // speed  of image changement when hovering the arrows
+
+function arrow_hover(){                                                                 // change of image when hovering on the arrow
+      //alert('bind with hover !!! ')
+      $('#butt_img_up').mouseenter(function(){ change_pic(pic_speed, 'up') })
+                       .mouseleave(function(){ clearInterval(img_dir) })
+      $('#butt_img_down').mouseenter(function(){ change_pic(pic_speed, 'down') })
+                         .mouseleave(function(){ clearInterval(img_dir) })
+
+   }
+
+   function arrow_click(){                                                                // change of image when clicking on the arrow
+      //alert('bind with click !!! ')
+      $('#butt_img_up').click(function(){ img_up_dwn('up') })
+      $('#butt_img_down').click(function(){ img_up_dwn('down') })
+
+   }
+
+   function unbind_arrows(){                                                             // unbind the arrows
+      //alert('unbinding !!! ')
+      $('#butt_img_up').unbind()
+      $('#butt_img_down').unbind()
+   }
+
+   arrow_hover()                                                                        // hover at initialization
+
+   //------------------- Change how the images are read
+
+   $('#read_pics').on('change', function() {                                                     // select how images are ead (click or hover)
+
+       read_pic_kind = $(this).val()
+       //alert(read_pic_kind)
+       unbind_arrows()
+       if (read_pic_kind == 'hover'){
+               arrow_hover()
+            }
+       else if (read_pic_kind == 'click'){
+               arrow_click()
+            }
+
+    });

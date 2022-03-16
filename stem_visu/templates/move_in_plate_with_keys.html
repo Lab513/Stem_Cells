@@ -1,0 +1,55 @@
+function well_extract_num_letter() {
+
+  well_num = curr_well.match(/\w(\d+)/)[1]
+  well_letter = curr_well.match(/(\w?)\d+/)[1]
+  //alert('well_num is ' + well_num)
+  //alert('well_letter is ' + well_letter)
+
+  return [well_letter, well_num]
+
+}
+
+function go_to_new_well(new_well_id){
+
+  var curr_pic = $('#curr_proc_pic').attr('src').split('?')[0]
+  repl_well(curr_pic, new_well_id)
+  repl_well_img_nbcells(curr_pic, new_well_id)
+  $('#' + new_well_id).click()
+
+}
+
+key('down', function(){
+
+  var [well_letter, well_num] = well_extract_num_letter()
+  var new_well_id = well_letter + (parseInt(well_num) + 1)
+  //alert('new_well_id ' + new_well_id)
+  go_to_new_well(new_well_id)
+
+ });
+
+ key('up', function(){
+
+   var [well_letter, well_num] = well_extract_num_letter()
+   var new_well_id = well_letter + (parseInt(well_num) - 1)
+   //alert('new_well_id ' + new_well_id)
+   go_to_new_well(new_well_id)
+
+  });
+
+key('right', function(){
+
+  var [well_letter, well_num] = well_extract_num_letter()
+  ind_letter = lh.indexOf(well_letter)
+  var new_well_id = lh[ind_letter+1] + well_num
+  go_to_new_well(new_well_id)
+
+ });
+
+ key('left', function(){
+
+   var [well_letter, well_num] = well_extract_num_letter()
+   ind_letter = lh.indexOf(well_letter)
+   var new_well_id = lh[ind_letter-1] + well_num
+   go_to_new_well(new_well_id)
+
+    });

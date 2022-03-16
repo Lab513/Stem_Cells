@@ -1,0 +1,520 @@
+ body {
+     background-color: #ffffff;
+ }
+
+.footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #9abc5e;
+    border-color:#8bb049;
+    background-image: linear-gradient(to bottom, #ffffff 0%, #9abc5e 100%);
+    z-index: 20;
+}
+.centering {
+    text-align: center;
+}
+
+.retrieve {
+    margin-top: -50 px;
+    margin-left: 10%;
+}
+
+.centering_foot {
+    margin-left: 45%;
+}
+
+
+.centered {
+    position: absolute;
+    top: 50%;
+}
+
+
+#processing {
+    position: absolute;
+    bottom: 10%;
+    left: 80%;
+
+}
+
+/* Processings controls */
+
+.proc_controls {
+
+      /* informations about the processings */
+
+      box-shadow: 0.5em 0.5em 0.7em;
+      position: absolute;
+      top: 100px;
+      right: 25%;
+      height: 400px;
+      width: 300px;
+      z-index: : 10;
+      opacity: 1;
+      z-index: : 1000;
+
+}
+
+.state_proc {
+
+      /* indicates the processing being done */
+
+      position: absolute;
+      top: 20px;
+      left:50px;
+
+    }
+
+.curr_state {
+
+      /* indicates the current proc's step */
+
+      position: absolute;
+      top: 200px;
+      left:50px;
+
+    }
+
+.ratio_done {
+
+      /* indicates the ratio of procs done */
+
+      position: absolute;
+      top: 250px;
+      left:50px;
+
+    }
+
+.num_im {
+
+      /* indicates the processing being done */
+
+      position: absolute;
+      top: 300px;
+      left:50px;
+
+    }
+
+.curr_proc {
+
+      /* indicates the file currently processed */
+      position: absolute;
+      top: 450px;
+      right:350px;
+
+    }
+
+/* Time controls */
+
+.time_controls {
+
+      /* time informations about the processings */
+
+      box-shadow: 0.5em 0.5em 0.7em;
+      position: absolute;
+      top: 400px;
+      left: 30%;
+      height: 100px;
+      width: 300px;
+      z-index: : 10;
+
+}
+
+.time_one_proc {
+
+      /* indicates the time used for the last processing */
+
+      position: absolute;
+      top: 30px;
+      left:50px;
+    }
+
+.telapsed {
+
+      /* indicates the file currently processed */
+
+      position: absolute;
+      top: 55px;
+      left:50px;
+
+    }
+
+.all_procs_time {
+
+      /* indicates the total time elapsed */
+
+      position: absolute;
+      top: 55px;
+      left:50px;
+    }
+
+#params_general {
+
+      /* SW */
+
+      position: absolute;
+      top: 200px;
+      left: 400px;
+      height: 300px;
+      width: 150px;
+    }
+
+#params_timings {
+
+      /* integration time, step time etc.. */
+
+      position: absolute;
+      top: 250px;
+      left: 160px;
+      height: 150px;
+      width: 300px;
+      border-style: dotted;
+      padding-left: 20px;
+      padding-top: 20px;
+    }
+
+ #resulting_times {
+
+      /* */
+
+      position: absolute;
+      top: 420px;
+      left: 160px;
+      height: 70px;
+      width: 300px;
+      border-style: dotted;
+      border-color: blue;
+      padding-left: 20px;
+      padding-top: 10px;
+    }
+
+    .input_timings {
+        width:40px;
+        margin-left:10px;
+        border-style: none;
+    }
+
+#params_input_pressures {
+
+      /* Pa, Pb, Pc.. */
+
+      position: absolute;
+      top: 50px;
+      left: 100px;
+      height: 150px;
+      width: 450px;
+      border-style: dotted;
+    }
+
+    .gate {
+
+          /* Pa, Pb, Pc.. */
+
+          position: absolute;
+          top: 10px;
+          left: 200px;
+          height: 300px;
+          width: 150px;
+        }
+
+    .tit_gate {
+        font-weight: bold;
+    }
+
+    .tit_reserv {
+        font-size: 10px;
+        width:50px;
+    }
+
+    .input_gate {
+        width:50px;
+        height:20px;
+    }
+
+    .value_gate {
+        width:50px;
+    }
+
+    .name_param_gate {
+        position: absolute;
+        left:10px;
+        font-size: 10px;
+    }
+
+/* Speed */
+
+#params_speed {
+
+      /* fluids speed */
+
+      position: absolute;
+      top: 50px;
+      left: 700px;
+      height: 200px;
+      width: 320px;
+      border-style: dotted;
+      padding-left: 20px;
+      padding-top: 20px;
+    }
+
+    .input_speed {
+        width:50px;
+        margin-left:0px;
+        display: inline-block;
+    }
+
+    .NPs {
+        position: absolute;
+        top:20px;
+        left:20px;
+    }
+
+    .CrosLin {
+        position: absolute;
+        top:20px;
+        left:170px;
+    }
+
+    .Water {
+        position: absolute;
+        top:120px;
+        left:20px;
+    }
+
+    .Titrant {
+        position: absolute;
+        top:120px;
+        left:170px;
+    }
+
+
+
+
+
+
+  /* Panel for retrieving the address where are saved the results */
+
+.addr_save_panel {
+
+   position: absolute;
+   box-shadow: 0.5em 0.5em 0.7em;
+   top: 30px;
+   right: 50px;
+   height: 50px;
+   width: 400px;
+   background-color: white;
+   /* font-size:85%; */
+   z-index: 20;
+
+  }
+
+/* Processing configuration panel */
+
+.set_panel {
+     position: absolute;
+     box-shadow: 0.5em 0.5em 0.7em;
+     top: 80px;
+     right: 50px;
+     height: 300px;
+     width: 400px;
+     padding-left: 50px;
+     padding-top: 50px;
+     background-color: white;
+     /* font-size:85%; */
+     z-index: 20;
+  }
+
+/* Processings address */
+
+#addr_save_text {
+
+    margin-right: 10px;
+    margin-left: 10px;
+    margin-top: 10px;
+    height: 30px;
+    width: 380px;
+
+}
+
+/* Panel for examinating the results */
+
+.proc_pics_panel {
+
+     position: absolute;
+     box-shadow: 0.5em 0.5em 0.7em;
+     top: 80px;
+     left: 200px;
+     height: 600px;
+     width: 600px;
+     padding-left: 50px;
+     padding-top: 50px;
+     background-color: white;
+     z-index: 20;
+
+  }
+
+  /* Panel nbcells */
+
+  .nbcells_panel {
+
+       position: absolute;
+       box-shadow: 0.5em 0.5em 0.7em;
+       top: 40px;
+       left: 820px;
+       height: 600px;
+       width: 600px;
+       padding-left: 50px;
+       padding-top: 50px;
+       background-color: white;
+       z-index: 10;
+       opacity:1;
+
+    }
+
+  /* View options */
+
+  #view_options {
+
+       position: absolute;
+       /* box-shadow: 0.5em 0.5em 0.7em; */
+       top: 720px;
+       left: 200px;
+       height: 150px;
+       width: 500px;
+       padding-left: 20px;
+       padding-top: 20px;
+       background-color: white;
+       z-index: 40;
+
+    }
+
+
+  /* Panel with wells */
+
+  .wells_panel {
+
+       position: absolute;
+       box-shadow: 0.5em 0.5em 0.7em;
+       top: 80px;
+       right: 200px;
+       width: 350px;
+       height: 500px;
+       padding-left: 50px;
+       padding-top: 50px;
+       background-color: white;
+       z-index: 20;
+
+    }
+
+  /* Simple well */
+
+  .well_unit {
+
+       position: absolute;
+       box-shadow: 0.5em 0.5em 0.7em;
+       top: 80px;
+       right: 200px;
+       width: 30px ;
+       height: 30px ;
+       background-color: white;
+       z-index: 20;
+       display: flex;
+       justify-content: center;
+       align-items: center;
+
+    }
+
+  .well_content {
+    /* background: #06c; */
+    flex: 0 0 20px;
+  }
+
+  #curr_well {
+
+      position: absolute;
+      top: 15px;
+      left: 50px;
+
+}
+
+
+  #curr_proc_pic {
+
+      /* Current picture */
+
+      height: 500px;
+      width: 500px;
+
+}
+
+#butt_img_up {
+
+     position: absolute;
+     box-shadow: 0.5em 0.5em 0.7em;
+     top: 50%;
+     right: 10px;
+     width:22px;
+     height:22px;
+     z-index: 1;
+
+  }
+
+#butt_img_down {
+
+     position: absolute;
+     box-shadow: 0.5em 0.5em 0.7em;
+     top: 50%;
+     left: 10px;
+     width:22px;
+     height:22px;
+     z-index: 1;
+
+}
+
+/* Panel for examinating the results */
+
+.panel_translate {
+
+     position: absolute;
+     box-shadow: 0.5em 0.5em 0.7em;
+     top: 80px;
+     left: 300px;
+     height: 600px;
+     width: 300px;
+     padding-left: 50px;
+     padding-top: 50px;
+     background-color: green;
+     z-index: 100;
+     transition: transform 1s ease;
+
+  }
+
+#kind_read_pics > .bootstrap-select  {
+        width: 120px;
+  }
+
+#kind_orig_or_pred {
+
+      position: absolute;
+      top: 20px;
+      left: 200px;
+      height: 600px;
+      width: 300px;
+      padding-left: 50px;
+
+}
+
+#kind_orig_or_pred > .bootstrap-select  {
+        width: 120px;
+  }
+
+#hover_compare {
+
+    position: absolute;
+    bottom: 5px;
+    right: 30px;
+    height: 40px;
+    width: 200px;
+
+}

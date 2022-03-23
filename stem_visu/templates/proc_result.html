@@ -2,6 +2,8 @@
 
 <!-- inserted in index_folder.html -->
 
+<div class='infos_exp' > </div>
+
 <div class='wells_panel' > </div>
 
 <script>
@@ -54,6 +56,21 @@
            {% include 'change_orig_pred.html' %}
 
            {% include 'hover_to_BF.html' %}
+
+           socket.on('exp_infos', function(infos){
+               var dic_exp_infos = JSON.parse(infos)
+               $('.infos_exp').html('<div> data: ' +
+                  dic_exp_infos['dataset'] +
+                   '</div>' +
+
+                   '<div> model: ' +
+                      dic_exp_infos['model'] +
+                       '</div>'
+
+                   )
+
+
+                })
 
 
 

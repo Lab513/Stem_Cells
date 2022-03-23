@@ -20,6 +20,7 @@ import os
 import glob
 import yaml
 import json
+import shutil as sh
 import subprocess
 from colorama import Fore, Style                # Color in the Terminal
 import webbrowser
@@ -59,6 +60,7 @@ def test_connect():
     send_wells_list()
     send_nb_pics()
     send_nb_cells_max()
+    send_infos()
     emit('response', 'Connected')
     server.sleep(0.05)
 
@@ -123,12 +125,27 @@ def send_nb_cells_max(debug=[0]):
     dic_nb_cells_max = {}
     for w in lwells:
         addr_nbmax = f'stem_visu/static/results/pred_{w}/nb_cells_max.yaml'
-        with open(addr_nbmax) as f_r:
-            nbmax = yaml.load(f_r, Loader=yaml.FullLoader)
+        nbmax = 0
+        try:
+            with open(addr_nbmax) as f_r:
+                nbmax = yaml.load(f_r, Loader=yaml.FullLoader)
+        except:
+            print('Probably no nb_cells_max.yaml file')
         dic_nb_cells_max[w] = nbmax
     if 0 in debug:
         print(f'dic_nb_cells_max is { dic_nb_cells_max }')
     emit('dic_nb_cells_max', json.dumps(dic_nb_cells_max))
+
+
+def send_infos():
+    '''
+    Infos about the experiment
+    '''
+    exp_infos = f'stem_visu/static/results/proc_infos.yaml'
+    with open(exp_infos) as f_r:
+        infos = yaml.load(f_r, Loader=yaml.FullLoader)
+        print(f'infos are {infos}')
+    emit('exp_infos', json.dumps(infos))
 
 
 @socketio.on('mess')
@@ -138,33 +155,6 @@ def receiving_mess(mess):
     '''
     print(f"mess is { mess }")
     emit('refresh', "")
-
-
-@socketio.on('reinit_cells')
-def reinit_cells(mess):
-    '''
-    '''
-    with open('jupyter_for_analysis/pos.yaml', 'w') as f_w:
-        yaml.dump([], f_w)                               # reinit pos.yaml
-
-
-def make_ldic_frm_pos(frm_pos):
-    '''
-    '''
-    try:
-        with open('jupyter_for_analysis/pos.yaml') as f_r:
-            ldic_frm_pos = yaml.load(f_r, Loader=yaml.FullLoader)
-    except:
-        ldic_frm_pos = []
-    if ldic_frm_pos and ldic_frm_pos != list:
-        if type(ldic_frm_pos) == dict:
-            ldic_frm_pos = [ldic_frm_pos]
-    else:
-        ldic_frm_pos = []
-    frm_pos = json.loads(frm_pos)
-    ldic_frm_pos += [frm_pos]
-
-    return ldic_frm_pos
 
 
 def shutdown_server():

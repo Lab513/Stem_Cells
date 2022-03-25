@@ -1,0 +1,8 @@
+//------------------- new dataset
+
+$("#load_dataset").click(function(e){                                               // mouse position
+
+    var name_dataset = $('#dataset_name').val()
+    socket.emit("name_dataset", name_dataset)
+
+})

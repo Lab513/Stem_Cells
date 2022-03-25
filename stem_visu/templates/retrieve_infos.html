@@ -1,0 +1,16 @@
+
+
+socket.on('exp_infos', function(infos){
+    var dic_exp_infos = JSON.parse(infos)
+    $('.infos_exp').html('<div> data: ' +
+       dic_exp_infos['dataset'] +
+        '</div>' +
+
+        '<div> model: ' +
+           dic_exp_infos['model'] +
+            '</div>'
+
+        )
+
+
+     })

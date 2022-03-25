@@ -147,6 +147,13 @@ def send_infos():
         print(f'infos are {infos}')
     emit('exp_infos', json.dumps(infos))
 
+@socketio.on('name_dataset')
+def load_new_dataset(name_dataset):
+    '''
+    loading dataset
+    '''
+    print(f'name_dataset is {name_dataset}')
+
 
 @socketio.on('mess')
 def receiving_mess(mess):

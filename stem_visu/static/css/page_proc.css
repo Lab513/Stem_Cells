@@ -534,3 +534,11 @@
      transition: transform 1s ease;
 
   }
+
+#loading_new_dataset {
+
+      position: absolute;
+      bottom: 5px;
+      right: 30px;
+
+  }

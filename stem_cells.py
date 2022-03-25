@@ -53,7 +53,7 @@ class STEM_CELLS(object):
                          'nbcells':[]}      # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
 
-    def last_two_levels(addr):
+    def last_two_levels(self, addr):
         '''
         From /a/b/c/d returns c/d
         '''
@@ -66,7 +66,7 @@ class STEM_CELLS(object):
         os.mkdir(self.folder_results)                              # results folder
         with open(f'{self.folder_results}/proc_infos.yaml', 'w') as f_w:
             # save model name in proc_infos.yaml
-            dic_infos = {'dataset': last_two_levels(self.addr_folder),
+            dic_infos = {'dataset': self.last_two_levels(self.addr_folder),
                          'model': self.curr_model}
             yaml.dump(dic_infos, f_w)
 

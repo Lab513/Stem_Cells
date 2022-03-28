@@ -13,13 +13,14 @@ from pathlib import Path
 import pandas as pd
 from matplotlib import pyplot as plt
 from tensorflow.keras import models
+from modules.find_static_shapes import FIND_STATIC as FS
 
 import cv2
 op = os.path
 opb, opd, opj = op.basename, op.dirname, op.join
 
 
-class STEM_CELLS(object):
+class STEM_CELLS(FS):
     '''
     Detect and count the stem cells
     The program uses Tensorflow
@@ -30,12 +31,15 @@ class STEM_CELLS(object):
         addr_folder: address of the images
         model : model shortcut used for counting the cells
         '''
+        FS.__init__(self)
 
         self.curr_model = model
         self.addr_folder = addr_folder                 # path for data
         self.id_exp = opb(opd(self.addr_folder))
         self.kind_exp = opb(self.addr_folder)
-        self.folder_results = f'results_mod_{self.curr_model}_data_{self.id_exp}-{self.kind_exp}'
+        self.folder_results = f'results_mod_{self.curr_model}'\
+                              f'_data_{self.id_exp}-{self.kind_exp}'\
+                              f'_{self.date()}'
         with open('models.yaml') as f:
             dic_models = yaml.load(f, Loader=yaml.FullLoader)
             curr_mod = dic_models[model]       # full name of the current model
@@ -52,6 +56,14 @@ class STEM_CELLS(object):
                          'time':[],
                          'nbcells':[]}      # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
+
+    def date(self):
+        '''
+        Return a string with day, month, year, Hour and Minute..
+        '''
+        now = datetime.now()
+        dt_string = now.strftime("%d-%m-%Y-%H-%M")
+        return dt_string
 
     def last_two_levels(self, addr):
         '''
@@ -123,6 +135,28 @@ class STEM_CELLS(object):
                           fontScale, color, thickness, cv2.LINE_AA)
         return img
 
+    def make_mask_from_contour(self,cnt, dilate=False, iter_dilate=1):
+        '''
+        '''
+
+        h, w, nchan = self.img.shape
+        mask = np.zeros((h, w), np.uint8)
+        cv2.drawContours(mask, [cnt], -1, (255, 255, 255), -1) # fill contour
+
+        return mask
+
+    def IoU_filter(self,c1, c2):
+        '''
+        Compare Intersection over Union..
+        '''
+        mask0 = self.make_mask_from_contour(c1)                      # previous contour
+        mask1 = self.make_mask_from_contour(c2)                           # new contour..
+        inter = np.logical_and(mask0, mask1)
+        union = np.logical_or(mask0, mask1)
+        iou_score = np.sum(inter) / np.sum(union)
+        print(f"### IoU score for  is {iou_score}")
+        return iou_score
+
     def find_cntrs(self, img, debug=[]):
         '''
         Find the contours in the thresholded prediction
@@ -141,6 +175,18 @@ class STEM_CELLS(object):
                     print(f'cv2.contourArea(c) is {cv2.contourArea(c)}')
         filt_cntrs = [c for c in cntrs if self.max_area
                       > cv2.contourArea(c) > self.min_area]
+
+        filt_not_static = []
+        for c1 in filt_cntrs:
+            score_max = 0
+            for c2 in self.prohibited_cntrs:
+                score = self.IoU_filter(c1, c2)
+                if score > score_max:
+                    score_max = score
+            if score_max < 0.1:
+                filt_not_static += [c1]
+        filt_cntrs = filt_not_static
+
         return filt_cntrs
 
     def make_levels(self, debug=[]):
@@ -269,7 +315,13 @@ class STEM_CELLS(object):
         for i, f in enumerate(self.addr_files):
             print(f'current image is { f }')
             img, img_pred = self.make_pred(i, f)
+            if i > 1:
+                self.prohibited_cntrs = self.comp_imgs(self.addr_files[i-1],
+                                                self.addr_files[i])
             cntrs = self.find_cntrs(img_pred)       # contours from predictions
+
+
+
             self.save_well_pics(i, img, cntrs)
             self.save_nb_cells_max(i, cntrs)
             self.nbcntrs = len(cntrs)

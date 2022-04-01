@@ -2,6 +2,12 @@
 Program for segmenting and counting the stem cells
 '''
 
+from modules.find_mean_bckgrnd import MEAN_BACKGROUND as MB
+from datetime import datetime
+from pathlib import Path
+from matplotlib import pyplot as plt
+from tensorflow.keras import models
+
 import glob
 import re
 import os
@@ -9,18 +15,13 @@ import numpy as np
 
 import yaml
 import shutil as sh
-from pathlib import Path
 import pandas as pd
-from matplotlib import pyplot as plt
-from tensorflow.keras import models
-from modules.find_static_shapes import FIND_STATIC as FS
-
 import cv2
 op = os.path
 opb, opd, opj = op.basename, op.dirname, op.join
 
 
-class STEM_CELLS(FS):
+class STEM_CELLS():
     '''
     Detect and count the stem cells
     The program uses Tensorflow
@@ -31,7 +32,6 @@ class STEM_CELLS(FS):
         addr_folder: address of the images
         model : model shortcut used for counting the cells
         '''
-        FS.__init__(self)
 
         self.curr_model = model
         self.addr_folder = addr_folder                 # path for data
@@ -109,6 +109,7 @@ class STEM_CELLS(FS):
         self.addr_files = glob.glob(glob_string)
         self.addr_files.sort(key=lambda x: self.mdh_to_nb(x))
         self.lmdh.sort(key=lambda x: self.mdh_to_nb(x, make_lmdh=False))
+        self.mb = MB(self.addr_files)
 
     def prep_img(self, addr_img):
         '''
@@ -135,26 +136,28 @@ class STEM_CELLS(FS):
                           fontScale, color, thickness, cv2.LINE_AA)
         return img
 
-    def make_mask_from_contour(self,cnt, dilate=False, iter_dilate=1):
+    def make_mask_from_contour(self,cnt,debug=[]):
         '''
         '''
-
-        h, w, nchan = self.img.shape
+        if 0 in debug:
+            print(f'self.img.shape = {self.img.shape}')
+        _, h, w, _ = self.img.shape
         mask = np.zeros((h, w), np.uint8)
         cv2.drawContours(mask, [cnt], -1, (255, 255, 255), -1) # fill contour
 
         return mask
 
-    def IoU_filter(self,c1, c2):
+    def IoU_filter(self,c1, c2, debug=[]):
         '''
         Compare Intersection over Union..
         '''
-        mask0 = self.make_mask_from_contour(c1)                      # previous contour
-        mask1 = self.make_mask_from_contour(c2)                           # new contour..
+        mask0 = self.make_mask_from_contour(c1)           # previous contour
+        mask1 = self.make_mask_from_contour(c2)           # new contour..
         inter = np.logical_and(mask0, mask1)
         union = np.logical_or(mask0, mask1)
         iou_score = np.sum(inter) / np.sum(union)
-        print(f"### IoU score for  is {iou_score}")
+        if 0 in debug:
+            print(f"### IoU score for  is {iou_score}")
         return iou_score
 
     def find_cntrs(self, img, debug=[]):
@@ -173,19 +176,9 @@ class STEM_CELLS(FS):
             for c in cntrs:
                 if 1 in debug:
                     print(f'cv2.contourArea(c) is {cv2.contourArea(c)}')
+        # filter on area
         filt_cntrs = [c for c in cntrs if self.max_area
                       > cv2.contourArea(c) > self.min_area]
-
-        filt_not_static = []
-        for c1 in filt_cntrs:
-            score_max = 0
-            for c2 in self.prohibited_cntrs:
-                score = self.IoU_filter(c1, c2)
-                if score > score_max:
-                    score_max = score
-            if score_max < 0.1:
-                filt_not_static += [c1]
-        filt_cntrs = filt_not_static
 
         return filt_cntrs
 
@@ -314,17 +307,19 @@ class STEM_CELLS(FS):
         self.nb_cells_max = 0
         for i, f in enumerate(self.addr_files):
             print(f'current image is { f }')
-            img, img_pred = self.make_pred(i, f)
-            if i > 1:
-                self.prohibited_cntrs = self.comp_imgs(self.addr_files[i-1],
-                                                self.addr_files[i])
-            cntrs = self.find_cntrs(img_pred)       # contours from predictions
-
-
-
-            self.save_well_pics(i, img, cntrs)
+            # find static shapes in the image using average
+            self.mb.extract_bckgrnd(ind_range=[i,15+i])
+            _, img_pred_bckgd = self.make_pred(i, self.mb.interm)
+            cntrs_bckgd = self.find_cntrs(img_pred_bckgd)
+            self.nb_false_pos_static = len(cntrs_bckgd)
+            self.img, img_pred = self.make_pred(i, f)
+            # contours from predictions
+            cntrs = self.find_cntrs(img_pred)
+            self.save_well_pics(i, self.img, cntrs)
             self.save_nb_cells_max(i, cntrs)
             self.nbcntrs = len(cntrs)
+            # remove false positive detections
+            self.nbcntrs -= self.nb_false_pos_static
             self.lnbcells += [self.nbcntrs]
             ymdh = self.extract_date(f)
             self.ltimes += [ymdh]

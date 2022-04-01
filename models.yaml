@@ -13,3 +13,5 @@ stem_few_ep20 : stem_few-ep20-bs4_date07-01-2022-15-50
 stem_few_ep30 : stem_few-ep30-bs4_date06-01-2022-17-58
 stem_few_ep40 : stem_few-ep40-bs4_date07-01-2022-19-48
 stem_few_ep50 : stem_few-ep50-bs4_date06-01-2022-19-20
+stem_few_clean_ep20 : stem_few_clean-ep20-bs4_date31-03-2022-15-14
+stem_few_clean_ep10 : stem_few_clean-ep10-bs4_date31-03-2022-14-50

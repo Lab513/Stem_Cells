@@ -9,9 +9,9 @@ class FIND_STATIC():
         '''
         '''
         self.area_size_min = 50
-        self.area_size_max = 1e3
+        self.area_size_max = 3e3
 
-    def comp_imgs(self, img1, img2, show=True):
+    def comp_imgs(self, img1, img2, i, show=False):
         '''
         '''
         self.prepare_imgs(img1, img2)
@@ -19,6 +19,7 @@ class FIND_STATIC():
         cntrs = self.find_contours()
         if show:
             self.show_result()
+        self.save_result(i)
         return cntrs
 
     def prepare_imgs(self, img1, img2, debug=[0]):
@@ -85,3 +86,8 @@ class FIND_STATIC():
         #cv2.imshow('mask', self.mask)
         cv2.imshow('filled after',self.filled_after)
         cv2.waitKey(0)
+
+    def save_result(self, i, debug=[0]):
+        '''
+        '''
+        cv2.imwrite(f'static_patterns_{i}.png', self.filled_after)

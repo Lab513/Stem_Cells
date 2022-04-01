@@ -98,7 +98,7 @@ class STEM_CELLS():
                     .replace('m', ''))
         return nb
 
-    def list_imgs(self, well=None, debug=[0]):
+    def list_imgs(self, well=None, debug=[]):
         '''
         List of the images for a given well
         '''
@@ -107,6 +107,8 @@ class STEM_CELLS():
         if 0 in debug:
             print(f'glob_string is {glob_string}')
         self.addr_files = glob.glob(glob_string)
+        if 1 in debug:
+            print(f'self.addr_files is {self.addr_files}')
         self.addr_files.sort(key=lambda x: self.mdh_to_nb(x))
         self.lmdh.sort(key=lambda x: self.mdh_to_nb(x, make_lmdh=False))
         self.mb = MB(self.addr_files)
@@ -295,7 +297,7 @@ class STEM_CELLS():
 
     def count(self, debug=[]):
         '''
-        Count the number of cells in the images
+        Count the number of cells in the images of given well
         '''
         if 0 in debug:
             print('In count !!!')
@@ -305,13 +307,21 @@ class STEM_CELLS():
         self.l_level = []
         self.curr_nb = 0
         self.nb_cells_max = 0
+        nb_files = len(self.addr_files)
+        step_bckgd = 20
+        range_bckgd = 15
         for i, f in enumerate(self.addr_files):
             print(f'current image is { f }')
-            # find static shapes in the image using average
-            self.mb.extract_bckgrnd(ind_range=[i,15+i])
-            _, img_pred_bckgd = self.make_pred(i, self.mb.interm)
-            cntrs_bckgd = self.find_cntrs(img_pred_bckgd)
-            self.nb_false_pos_static = len(cntrs_bckgd)
+            if i%step_bckgd == 0:
+                if nb_files-i > range_bckgd+1:
+                    try:
+                        # find static shapes in the image using average
+                        self.mb.extract_bckgrnd(ind_range=[i,range_bckgd+i])
+                        _, img_pred_bckgd = self.make_pred(i, self.mb.pic_name)
+                        cntrs_bckgd = self.find_cntrs(img_pred_bckgd)
+                        self.nb_false_pos_static = len(cntrs_bckgd)
+                    except:
+                        print('Cannot calculate the nb of false positive detections')
             self.img, img_pred = self.make_pred(i, f)
             # contours from predictions
             cntrs = self.find_cntrs(img_pred)
@@ -494,9 +504,8 @@ class STEM_CELLS():
         Save all wells with the times
          and the number of cells in the "results" folder
         '''
-        #self.csv(self.reform_dict(self.dic_tnbc))
         self.csv(self.dic_tnbc)
-        #self.csv(self.list_tnbc)
+    
 
     def reform_dict(self, nest_dict):
         '''

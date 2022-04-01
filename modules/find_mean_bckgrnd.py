@@ -70,7 +70,7 @@ class MEAN_BACKGROUND():
                         save_all=False,
                         show_last=True,
                         show_ith=None,
-                        debug=[]):
+                        debug=[0]):
         '''
         Find the non moving part of the images
         '''
@@ -78,22 +78,23 @@ class MEAN_BACKGROUND():
         # first image
         interm = self.shift_and_add(self.limg[0], self.limg[1], ratio=0.5)
         # mean with following images
+        if 0 in debug:
+            print('In extract_bckgrnd...')
         for i in range(ind_range[0],ind_range[1]):
-            if 0 in debug:
-                print(i)
+
             self.interm = self.shift_and_add(self.limg[i], interm, ratio=1/(i+2))
-            pic_name = f'mean with {i-ind_range[0]} pictures.png'
+            self.pic_name = f'mean with {i-ind_range[0]} pictures.tiff'
             if show_ith != None:
                 if i == show_ith:
                     print(f'keep image {i}')
                     self.pic_ith = self.interm
             if save_all:
                 # save the whole evolution of the mean
-                cv2.imwrite(pic_name, self.interm)
+                cv2.imwrite(self.pic_name, self.interm)
             else:
                 # save only the last picture for the mean
                 if i == last_ind:
-                    cv2.imwrite(pic_name, self.interm)
+                    cv2.imwrite(self.pic_name, self.interm)
                     if show_last:
                         plt.title(f'pic{i}')
                         plt.imshow(self.interm)

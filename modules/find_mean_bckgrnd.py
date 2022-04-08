@@ -17,7 +17,7 @@ class MEAN_BACKGROUND():
         for addr_img in list_addr_imgs:
             self.limg += [cv2.imread(addr_img)]
 
-    def find_shift(self, img0, img1, debug=[]):
+    def find_shift(self, img0, img1, debug=[0]):
         '''
         Find the shift in pixels between img0 and img1
         '''
@@ -30,12 +30,14 @@ class MEAN_BACKGROUND():
 
         return shift
 
-    def shift_img(self, img, shift):
+    def shift_img(self, img, shift, debug=[0]):
         '''
         Shift img with shift translation
         '''
         M = np.float32([[1, 0, shift[0]], [0, 1, shift[1]]])
         img_shifted = cv2.warpAffine(img.copy(), M, (img.shape[1], img.shape[0]))
+        if 0 in debug:
+            print('image shifted')
 
         return img_shifted
 
@@ -48,10 +50,13 @@ class MEAN_BACKGROUND():
 
         return img0_shifted
 
-    def shift_and_add(self, img0, img1, ratio=0.5):
+    def shift_and_add(self, img0, img1, ratio=0.5, debug=[0]):
         '''
         Shift img0 on img1 and add them
+        ratio : weight for the new image
         '''
+        if 0 in debug:
+            print(f'In shift_and_add, the weight ratio for superposition is {ratio}')
         shifted_img0 = self.align_img0_on_img1(img0, img1)
         added = cv2.addWeighted(shifted_img0, ratio, img1, 1-ratio, 0.0)
 
@@ -76,14 +81,14 @@ class MEAN_BACKGROUND():
         '''
         last_ind = ind_range[1]-1
         # first image
-        interm = self.shift_and_add(self.limg[0], self.limg[1], ratio=0.5)
+        self.interm = self.shift_and_add(self.limg[0], self.limg[1], ratio=0.5)
         # mean with following images
         if 0 in debug:
             print('In extract_bckgrnd...')
         for i in range(ind_range[0],ind_range[1]):
 
-            self.interm = self.shift_and_add(self.limg[i], interm, ratio=1/(i+2))
-            self.pic_name = f'mean with {i-ind_range[0]} pictures.tiff'
+            self.interm = self.shift_and_add(self.limg[i], self.interm, ratio=1/(i+2))
+            self.pic_name = f'mean at {ind_range[0]} with {i-ind_range[0]} pictures.tiff'
             if show_ith != None:
                 if i == show_ith:
                     print(f'keep image {i}')

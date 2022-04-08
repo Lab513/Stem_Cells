@@ -18,6 +18,13 @@ run:
 instructions](https://www.tensorflow.org/install/gpu#windows_setup) for
 installing `tensorflow-gpu`.
 
+### other dependencies
+
+For reading excel files
+```bash
+> pip install openpyxl
+```
+
 
 NB: If you are upgrading, then you may need to run: `git pull`
 

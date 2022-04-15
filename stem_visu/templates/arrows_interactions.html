@@ -1,4 +1,21 @@
 var pic_speed = 80                                                                       // speed  of image changement when hovering the arrows
+var pic_speed_key = 100
+
+key('w', function(){
+  clearInterval(img_dir)
+  change_pic(pic_speed_key, 'down')
+ });
+
+key('x', function(){
+  clearInterval(img_dir)
+  change_pic(pic_speed_key, 'up')
+
+ });
+
+ key('s', function(){
+   clearInterval(img_dir)
+
+  });
 
 function arrow_hover(){                                                                 // change of image when hovering on the arrow
       //alert('bind with hover !!! ')

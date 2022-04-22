@@ -36,7 +36,7 @@ class STEM_CELLS(FGM):
     '''
 
     def __init__(self, addr_folder,
-                 model='stem_ep30',
+                 list_models=['stem_ep30'],
                  model_area='stem_area_ep5',
                  min_area=2):
         '''
@@ -49,27 +49,34 @@ class STEM_CELLS(FGM):
         self.manual_df = xls.parse(0)
         self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == 'HSC']
         ##
-        self.curr_model = model
+        self.list_models = list_models
+        self.curr_model = list_models[0]
         self.addr_folder = addr_folder                 # path for data
         self.id_exp = opb(opd(self.addr_folder))
         self.kind_exp = opb(self.addr_folder)
         self.folder_results = f'results_mod_{self.curr_model}'\
                               f'_data_{self.id_exp}-{self.kind_exp}'\
                               f'_{self.date()}'
+        curr_list_mod = []
         with open('models.yaml') as f:
             dic_models = yaml.load(f, Loader=yaml.FullLoader)
             # full name of the current stems model
-            curr_mod = dic_models[model]
+            for model in list_models:
+                curr_list_mod += [dic_models[model]]
             # full name of the current stem model area
             curr_mod_area = dic_models[model_area]
 
-        addr_model = Path('models') / curr_mod
+
         addr_area_model = Path('models') / curr_mod_area
-        print(f'addr_model is {addr_model}')
+
         print(f'addr_area_model is {addr_area_model}')
         ####
-        # load the model for stem cells detection
-        self.mod_stem = models.load_model(addr_model)
+        self.list_mod_stem = []
+        # load the models for stem cells detection
+        for curr_mod in curr_list_mod:
+            addr_model = Path('models') / curr_mod
+            print(f'addr_model is {addr_model}')
+            self.list_mod_stem += [ models.load_model(addr_model) ]
         # load the model for finding the area where are the stem cells
         self.mod_stem_area = models.load_model(addr_area_model)
         self.prepare_result_folder()        # create the folder for the results
@@ -130,7 +137,7 @@ class STEM_CELLS(FGM):
         with open(f'{self.folder_results}/proc_infos.yaml', 'w') as f_w:
             # save model name in proc_infos.yaml
             dic_infos = {'dataset': self.last_two_levels(self.addr_folder),
-                         'model': self.curr_model}
+                         'models': self.list_models}
             yaml.dump(dic_infos, f_w)
 
     def mdh_to_nb(self, l, make_lmdh=True):
@@ -370,29 +377,40 @@ class STEM_CELLS(FGM):
         # save BF + area for stems
         self.save_BF_with_area(i, cntrs_area)
 
+    def from_pred_to_imgpred(self, pred, debug=[]):
+        '''
+        '''
+        if 0 in debug:
+            print(f'type(pred[0]) is {type(pred[0])}')
+            print(f'pred[0].shape) is {pred[0].shape}')
+        pred_img = pred[0]*255
+        pred_img = pred_img.astype('uint8')
+
+
+        try:
+            img_pred = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
+        except:
+            img_pred = pred_img
+        return img_pred
+
     def make_pred(self, i, f, debug=[]):
         '''
         '''
         self.curr_ind = i
         # prepare images
         img = self.prep_img(f)
-        # prediction with model stem_cells
-        pred = self.mod_stem.predict(img)
+        # prediction with models stem_cells
+        list_img_pred = []
+        for mod in self.list_mod_stem:
+            pred = mod.predict(img)
+            img_pred = self.from_pred_to_imgpred(pred)
+            list_img_pred += [img_pred]
         # prediction with model stem_cells area
         pred_area = self.mod_stem_area.predict(img)
-        if 0 in debug:
-            print(f'type(pred[0]) is {type(pred[0])}')
-            print(f'pred[0].shape) is {pred[0].shape}')
-        pred_img = pred[0]*255
-        pred_img = pred_img.astype('uint8')
         pred_img_area = pred_area[0]*255
         pred_img_area = pred_img_area.astype('uint8')
-        try:
-            img_pred = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
-        except:
-            img_pred = pred_img
 
-        return img, img_pred, pred_img_area
+        return img, list_img_pred, pred_img_area
 
     def save_nb_cells_max(self, i, cntrs):
         '''
@@ -628,6 +646,8 @@ class STEM_CELLS(FGM):
         range_bckgd = 15
         self.size_min_cloud = 5e3
         self.dic_pos = {}
+        # composite threshold
+        cmp_thr = 127
         for i, f in enumerate(self.addr_files):
             self.dic_pos[i] = []
             print(f'current image is { f }')
@@ -635,9 +655,16 @@ class STEM_CELLS(FGM):
             # if i%step_bckgd == 0:
             #     if nb_files-i > range_bckgd+1:
             #         img_bckgd, self.false_cntrs = self.find_false_pos_bckgd(i, range_bckgd)
-            self.img, img_pred, img_pred_area = self.make_pred(i, f)
-            # contours from predictions
-            cntrs = self.find_cntrs(img_pred, filt_surface=True)
+            self.img, list_img_pred, img_pred_area = self.make_pred(i, f)
+            # contours from the multiple predictions
+            _, h, w, _ = self.img.shape
+            cmp_img = np.zeros((h, w), np.uint8) # composite
+            for img_pred in list_img_pred:
+                print(f'type(img_pred) is {type(img_pred)}')
+                print(f'img_pred.shape is {img_pred.shape}')
+                print(f'cmp_img.shape is {cmp_img.shape}')
+                cmp_img[ np.squeeze(img_pred) > cmp_thr ] = 255
+            cntrs = self.find_cntrs(cmp_img, filt_surface=True)
             self.lcntrs += [cntrs]
             # contours for stem cells area
             cntrs_area = self.find_cntrs(img_pred_area, thresh=1)

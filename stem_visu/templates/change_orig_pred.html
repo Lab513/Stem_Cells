@@ -37,3 +37,20 @@ $('#orig_or_pred').on('change', function() {
       swap_pics()
 
 });
+
+key('b', function(){
+
+  swap_pics()
+  var curr_val_orpr = $('#orig_or_pred').val()
+  //alert(curr_val_orpr)
+  if(curr_val_orpr == 'orig'){
+      $('#orig_or_pred').val('pred')
+      $('#orig_or_pred').selectpicker('render')
+  }
+  else if (curr_val_orpr == 'pred'){
+      $('#orig_or_pred').val('orig')
+      $('#orig_or_pred').selectpicker('render')
+  }
+
+
+ })

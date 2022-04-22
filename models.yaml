@@ -16,3 +16,4 @@ stem_few_ep50 : stem_few-ep50-bs4_date06-01-2022-19-20
 stem_few_clean_ep20 : stem_few_clean-ep20-bs4_date31-03-2022-15-14
 stem_few_clean_ep10 : stem_few_clean-ep10-bs4_date31-03-2022-14-50
 stem_area_ep5 : training_area_cells-ep5-bs4_date08-04-2022-11-47
+stem_only_flat_ep15 : stem_only_flat-ep15-bs4_date19-04-2022-17-18

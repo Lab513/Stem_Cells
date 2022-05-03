@@ -17,6 +17,7 @@ import pandas as pd
 import glob
 import re
 import os
+import sys
 import numpy as np
 
 import yaml
@@ -28,6 +29,24 @@ op = os.path
 opb, opd, opj = op.basename, op.dirname, op.join
 
 
+class Logger(object):
+    '''
+    Logger for mda experiment
+    '''
+    def __init__(self, folder_results):
+        self.terminal = sys.stdout
+        self.log = open(opj(folder_results, 'log.dat'), "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def __getattr__(self, attr):
+        return getattr(self.terminal, attr)
+
+    def flush(self):
+        pass
+
 
 class STEM_CELLS(FGM):
     '''
@@ -38,6 +57,7 @@ class STEM_CELLS(FGM):
     def __init__(self, addr_folder,
                  list_models=['stem_ep30'],
                  model_area='stem_area_ep5',
+                 model_clustering='cluster_pos_ep10',
                  min_area=2):
         '''
         addr_folder: address of the images
@@ -65,11 +85,13 @@ class STEM_CELLS(FGM):
                 curr_list_mod += [dic_models[model]]
             # full name of the current stem model area
             curr_mod_area = dic_models[model_area]
-
+            curr_mod_cluster = dic_models[model_clustering]
 
         addr_area_model = Path('models') / curr_mod_area
+        addr_cluster_model = Path('models') / curr_mod_cluster
 
         print(f'addr_area_model is {addr_area_model}')
+        print(f'addr_cluster_model is {addr_cluster_model}')
         ####
         self.list_mod_stem = []
         # load the models for stem cells detection
@@ -79,9 +101,10 @@ class STEM_CELLS(FGM):
             self.list_mod_stem += [ models.load_model(addr_model) ]
         # load the model for finding the area where are the stem cells
         self.mod_stem_area = models.load_model(addr_area_model)
+        self.mod_cluster_pos = models.load_model(addr_cluster_model)
         self.prepare_result_folder()        # create the folder for the results
         self.min_area = min_area            # minimal area for cell
-        self.max_area = 20                  # maximal area for cell
+        self.max_area = 50                  # maximal area for cell
         self.lev_thr = 100                  # threshold level for segmentation
         self.dic_nbcells = {}
         self.dic_tnbc = {'well':[],
@@ -101,7 +124,6 @@ class STEM_CELLS(FGM):
         ltimes = ['T1','T2.1','T2.2','T3.1','T3.2','T3.3','T3.4']
         for t in ltimes:
             try:
-
                 div_date = w[t].values[0]
                 if 1 in debug:
                     print(f't is {t}')
@@ -134,6 +156,7 @@ class STEM_CELLS(FGM):
         Create the folder "results"
         '''
         os.mkdir(self.folder_results)                              # results folder
+        sys.stdout = Logger(self.folder_results)
         with open(f'{self.folder_results}/proc_infos.yaml', 'w') as f_w:
             # save model name in proc_infos.yaml
             dic_infos = {'dataset': self.last_two_levels(self.addr_folder),
@@ -225,7 +248,7 @@ class STEM_CELLS(FGM):
     def find_cntrs(self, img,
                    thresh=None,
                    filt_surface=False,
-                   debug=[]):
+                   debug=[1]):
         '''
         Find the contours in the thresholded prediction
         '''
@@ -240,15 +263,20 @@ class STEM_CELLS(FGM):
         thr = thr.astype('uint8')
         cntrs, _ = cv2.findContours(thr, cv2.RETR_TREE,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        if 1 in debug:
+            print(f'Before filtering, len(cntrs) = {len(cntrs)}')
         if len(cntrs) > 7:
             for c in cntrs:
-                if 1 in debug:
+                if 2 in debug:
                     print(f'cv2.contourArea(c) is {cv2.contourArea(c)}')
         # filter on area
         if filt_surface:
             filt_cntrs = [c for c in cntrs if self.max_area
                           > cv2.contourArea(c) > self.min_area]
             cntrs = filt_cntrs
+
+        if 1 in debug:
+            print(f'After filtering, len(cntrs) = {len(cntrs)}')
 
         return cntrs
 
@@ -298,11 +326,12 @@ class STEM_CELLS(FGM):
         beg_zeros = np.zeros(int(drange/2 + 2*iterat))
         self.l_level = np.concatenate((beg_zeros, self.l_level))
 
-    def draw_pred_contours(self, img, cntrs, debug=[]):
+    def draw_pred_contours(self, img, cntrs, debug=[0]):
         '''
         '''
         if 0 in debug:
             print(f'img.shape { img.shape }')
+            print(f'In draw_pred_contours, len(cntrs) = {len(cntrs)}')
         _, h, w, _ = img.shape
         mask = np.zeros((h, w), np.uint8)
         # fill contour
@@ -536,10 +565,6 @@ class STEM_CELLS(FGM):
         '''
         Plot the positions to extract the statistics..
         '''
-        fig, ax = plt.subplots()
-        plt.title('all the positions')
-        plt.xlim(0,512)
-        plt.ylim(0,512)
         lpts = []
         if 0 in debug:
             print(f'len(self.dic_pos) is {len(self.dic_pos)}')
@@ -553,12 +578,13 @@ class STEM_CELLS(FGM):
             pk_addr = opj(self.folder_results, f'{self.well}_all_pts.pkl')
             pk.dump( arr_pts, open( pk_addr, "wb" ) )
             print(f'arr_pts[0:20] = {arr_pts[0:20]}')
+            # Find optim gaussian mixture with correct clusters number..
             self.find_optim_gm(arr_pts)
-            self.plot_optim_GM(arr_pts, ax)
+            self.plot_optim_GM(arr_pts)
+            self.plot_pts_distrib(arr_pts)
         except:
             print('Cannot plot the clusters..')
 
-        plt.savefig(opj(self.folder_results, f'all the positions for well {self.well} for false pos detect.png'))
 
     def list_pts_inside(self, i, cnt, debug=[0]):
         '''
@@ -627,9 +653,68 @@ class STEM_CELLS(FGM):
         if 4 in debug:
             print(f'### self.lnbcells = {self.lnbcells}')
 
-    def count(self, debug=[]):
+    def list_of_cells_area_contours(self, img_pred_area):
         '''
-        Count the number of cells in the images of given well
+        '''
+        # contours for stem cells area
+        self.cntrs_area = self.find_cntrs(img_pred_area, thresh=1)
+        # save contours of cells debris in list
+        ll = [c  for c in self.cntrs_area if cv2.contourArea(c) > self.size_min_cloud] # else np.array([(0,0)])
+        self.lcells_area += [ll]
+
+    def make_composite_img(self, ind, list_img_pred, debug=[]):
+        '''
+        from images in list_img_pred, make the composite image cmp_img
+        Make the fusion of the predictions contours
+        '''
+        _, h, w, _ = self.img.shape
+        cmp_img = np.zeros((h, w), np.uint8) # composite
+        for i,img_pred in enumerate(list_img_pred):
+            # save the prediction used for fusion
+            cv2.imwrite(opj(self.pred_folder,
+                            f'img{ind}_pred_model{i}.png'),
+                         img_pred)
+            if 0 in debug:
+                print(f'type(img_pred) is {type(img_pred)}')
+                print(f'img_pred.shape is {img_pred.shape}')
+                print(f'cmp_img.shape is {cmp_img.shape}')
+            cmp_img[ np.squeeze(img_pred) > self.cmp_thr ] = 255
+        # save the fusionned image..
+        cv2.imwrite(opj(self.pred_folder,
+                        f'img{ind}_models_fusion.png'),
+                     cmp_img)
+
+        return cmp_img
+
+    def process_a_well(self,i,f):
+        '''
+        '''
+        self.dic_pos[i] = []
+        print(f'current image is { f }')
+        print(f'i is { i }')
+        # if i%step_bckgd == 0:
+        #     if nb_files-i > range_bckgd+1:
+        #         img_bckgd, self.false_cntrs = self.find_false_pos_bckgd(i, range_bckgd)
+        self.img, list_img_pred, img_pred_area = self.make_pred(i, f)
+        # contours from the multiple predictions
+        cmp_img = self.make_composite_img(i, list_img_pred)
+        # find contours on composite image
+        cntrs = self.find_cntrs(cmp_img, filt_surface=True)
+        self.lcntrs += [cntrs]
+        self.list_of_cells_area_contours(img_pred_area)
+        self.add_to_list_pos(i,cntrs)
+        #self.nb_pos = self.find_nb_false_pos(f, img_bckgd, cntrs)
+        # Save images of the contours : cells and cells area
+        self.save_well_pics(i, self.img, cntrs, self.cntrs_area)
+        self.save_nb_cells_max(i, cntrs)
+
+        ymdh = self.extract_date(f)
+        self.ltimes += [ymdh]
+
+    def count(self, time_range=None, debug=[]):
+        '''
+        Count the number of cells in the images of given well (self.well)
+        time_range : indices of the times to be processed..
         '''
         if 0 in debug:
             print('In count !!!')
@@ -647,38 +732,14 @@ class STEM_CELLS(FGM):
         self.size_min_cloud = 5e3
         self.dic_pos = {}
         # composite threshold
-        cmp_thr = 127
+        self.cmp_thr = 127
         for i, f in enumerate(self.addr_files):
-            self.dic_pos[i] = []
-            print(f'current image is { f }')
-            print(f'i is { i }')
-            # if i%step_bckgd == 0:
-            #     if nb_files-i > range_bckgd+1:
-            #         img_bckgd, self.false_cntrs = self.find_false_pos_bckgd(i, range_bckgd)
-            self.img, list_img_pred, img_pred_area = self.make_pred(i, f)
-            # contours from the multiple predictions
-            _, h, w, _ = self.img.shape
-            cmp_img = np.zeros((h, w), np.uint8) # composite
-            for img_pred in list_img_pred:
-                print(f'type(img_pred) is {type(img_pred)}')
-                print(f'img_pred.shape is {img_pred.shape}')
-                print(f'cmp_img.shape is {cmp_img.shape}')
-                cmp_img[ np.squeeze(img_pred) > cmp_thr ] = 255
-            cntrs = self.find_cntrs(cmp_img, filt_surface=True)
-            self.lcntrs += [cntrs]
-            # contours for stem cells area
-            cntrs_area = self.find_cntrs(img_pred_area, thresh=1)
-            # save contours of cells debris in list
-            ll = [c  for c in cntrs_area if cv2.contourArea(c) > self.size_min_cloud] # else np.array([(0,0)])
-            self.lcells_area += [ll]
-            self.add_to_list_pos(i,cntrs)
-            #self.nb_pos = self.find_nb_false_pos(f, img_bckgd, cntrs)
-            self.save_well_pics(i, self.img, cntrs, cntrs_area)
-            self.save_nb_cells_max(i, cntrs)
-
-            ymdh = self.extract_date(f)
-            self.ltimes += [ymdh]
-
+            if time_range:
+                if i in time_range:
+                    self.process_a_well(i,f)
+            else:
+                self.process_a_well(i,f)
+        # filter cells which are in cells area..
         self.filter_cntrs()
         self.max_density_levels(np.array(self.lnbcells))
         # plot all the positions for given well...
@@ -793,10 +854,11 @@ class STEM_CELLS(FGM):
         ax.yaxis.set_major_formatter(plt.FuncFormatter(self.format_funcy))
         plt.ylabel('number of cells', fontsize=self.fsize)
 
-    def plot(self, pic_at_jumps=False):
+    def plot_levels(self, pic_at_jumps=False):
         '''
         plot the results
         '''
+        plt.figure()
         # font size
         self.fsize = 60
         curr_well = f'well {self.well}, threshold {self.lev_thr} '
@@ -836,7 +898,7 @@ class STEM_CELLS(FGM):
         curr_well = f'well {self.well}'
         plt.savefig(opj(self.folder_results, curr_well + '.png'))
 
-    def analyse_one_well(self, well, name_well=True):
+    def analyse_one_well(self, well, time_range=None, name_well=True):
         '''
         Make an analysis of the number of cells in one well
         '''
@@ -847,8 +909,8 @@ class STEM_CELLS(FGM):
         self.pred_folder = opj(self.folder_results, f'pred_{well}')
         os.mkdir(self.pred_folder)               # prediction folder
         self.list_imgs(well=well)          # list of the images for one well
-        self.count()               # count the nb of cells through the pictures
-        self.plot()                # show the result
+        self.count(time_range)               # count the nb of cells through the pictures
+        self.plot_levels()                # show the result
 
     def plot_analysis_all_wells(self):
         '''

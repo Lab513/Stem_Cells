@@ -58,16 +58,18 @@ class STEM_CELLS(FGM):
                  list_models=['stem_ep30'],
                  model_area='stem_area_ep5',
                  model_clustering='cluster_pos_ep10',
+                 manual_annotations=r"manual_annot/AD63_manual.xlsx",
                  min_area=2):
         '''
         addr_folder: address of the images
         model : model shortcut used for counting the cells
         '''
-        FGM.__init__(self)
+        FGM.__init__(self) # find clusters
         # , engine= 'openpyxl'
-        xls = pd.ExcelFile(r"manual_annot/AD63_manual.xlsx")
-        self.manual_df = xls.parse(0)
-        self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == 'HSC']
+        if manual_annotations:
+            xls = pd.ExcelFile( fr"manual_annot/{manual_annotations}" )
+            self.manual_df = xls.parse(0)
+            self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == 'HSC']
         ##
         self.list_models = list_models
         self.curr_model = list_models[0]
@@ -112,7 +114,7 @@ class STEM_CELLS(FGM):
                          'nbcells':[]}      # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
 
-    def retrieve_times_nb_cells(self, well, debug=[0,1]):
+    def retrieve_times_nb_cells(self, well, debug=[]):
         '''
         '''
         if 0 in debug:
@@ -295,14 +297,31 @@ class STEM_CELLS(FGM):
 
         return nnbcells
 
+    def increasing_values(self):
+        '''
+        filter for having increasing values only
+        '''
+        print('filter for increasing values.. ')
+        print(f'initial list is {self.l_level}')
+        for i,curr in enumerate(self.l_level):
+            if i > 0:
+                prev = self.l_level[i-1]
+                if prev > curr:
+                    print(f'change level from {curr} to {prev}')
+                    self.l_level[i] = prev
+
+        print(f'self.l_level = {self.l_level}')
+
     def max_density_levels(self, nbcells,
                                  drange=5,
                                  iterat=8,
                                  nblevels = 10,
-                                 debug=[0,1]):
+                                 debug=[]):
         '''
         Find the levels using the density
+        drange : intervall on which is calculated the density
         '''
+        print('make max_density_levels')
         self.l_level = []
         for j,nb in enumerate(nbcells):
             sub = nbcells[j:j + drange]
@@ -315,8 +334,10 @@ class STEM_CELLS(FGM):
                 if 0 in debug:
                     print(f'lev is {lev}')
                     print(f'll is {ll}')
+                # number of occurences
                 nbocc = len(ll)
                 if nbocc > maxi:
+                    # value corresponding to maximum of occurrences
                     maxind = lev
                     maxi = nbocc
             self.l_level += [maxind]
@@ -325,6 +346,9 @@ class STEM_CELLS(FGM):
             self.l_level = self.correct_up(self.l_level)
         beg_zeros = np.zeros(int(drange/2 + 2*iterat))
         self.l_level = np.concatenate((beg_zeros, self.l_level))
+        self.increasing_values()
+
+        return self.l_level
 
     def draw_pred_contours(self, img, cntrs, debug=[0]):
         '''
@@ -393,6 +417,33 @@ class STEM_CELLS(FGM):
         cv2.imwrite(opj(self.pred_folder,
                     f'img{i}_stem_area.png'), img_superp_area)
 
+    def prep_fig(self):
+        '''
+        '''
+        nbpix = 512
+        fig, ax = plt.subplots()
+        fig = plt.figure(figsize=(5.12, 5.12), dpi=100)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        ax.set_xlim(0,nbpix)
+        ax.set_ylim(0,nbpix)
+
+        return ax
+
+    def save_area_with_detections(self, i, cntr_area, cntrs):
+        '''
+        '''
+        img_cross = self.img_orig.copy()
+        cv2.drawContours(img_cross, cntr_area, -1, (0, 255, 255), 1)
+        addr_fig_pos = opj(self.pred_folder,f'img{i}_detect_inside.png')
+        for c in cntrs:
+            pt = self.pos_from_cntr(c)
+            cv2.drawMarker(img_cross, (pt[0],pt[1]), color=(0,0,0),
+                            markerSize=15, markerType=cv2.MARKER_CROSS, thickness=2)
+            # cv2.drawMarker(img, (256,256), color=(0,0,0),
+            #                 markerSize=15, markerType=cv2.MARKER_CROSS, thickness=1)
+        cv2.imwrite(addr_fig_pos, img_cross)
 
     def save_well_pics(self, i, img, cntrs, cntrs_area):
         '''
@@ -405,6 +456,8 @@ class STEM_CELLS(FGM):
         self.save_BF_superp(i, cntrs)
         # save BF + area for stems
         self.save_BF_with_area(i, cntrs_area)
+        # save contours with save_area_with_detections
+        self.save_area_with_detections(i, cntrs_area, cntrs)
 
     def from_pred_to_imgpred(self, pred, debug=[]):
         '''
@@ -414,7 +467,6 @@ class STEM_CELLS(FGM):
             print(f'pred[0].shape) is {pred[0].shape}')
         pred_img = pred[0]*255
         pred_img = pred_img.astype('uint8')
-
 
         try:
             img_pred = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
@@ -585,44 +637,105 @@ class STEM_CELLS(FGM):
         except:
             print('Cannot plot the clusters..')
 
-
-    def list_pts_inside(self, i, cnt, debug=[0]):
+    def test_img_22(self, i, cntr, pkl=False):
         '''
+        '''
+        print('infos for image 22..')
+        _, h, w, _ = self.img.shape
+        mask = np.zeros((h, w, 3), np.uint8)
+        print(f'len(cntr) is {len(cntr)}')
+        print(f'cntr is {cntr}')
+        cv2.drawContours(mask, [cntr], -1, (0, 255, 255), 1) #
+        area_cnt = cv2.contourArea(cntr)
+        if pkl:
+            pk.dump( cntr, open( opj(self.folder_results,'cnt_clust_img22.pkl'), "wb" )  )
+
+        print(f'area cnt is {area_cnt}')
+        for c in self.lcntrs[i]:
+            print(f'c is {c}')
+            pt = self.pos_from_cntr(c)
+            print(f'pos of pt is {pt}')
+            area_pt = cv2.contourArea(c)
+            print(f'area_pt is {area_pt}')
+            # fill contour
+            cv2.drawContours(mask, [c], -1, (255, 255, 255), -1)
+            print(f'len(c) is {len(c)}')
+        pos_cnt = self.pos_from_cntr(cntr)
+        print(f'pos_cnt is {pos_cnt}')
+        cv2.imwrite(opj(self.folder_results,
+                        f'cnt with pos for 22.png'),
+                    mask)
+
+    def list_pts_inside(self, i, cntr, flip=False, test=False, debug=[0]):
+        '''
+        Find the points inside the contour cnt..
         '''
         self.linside = []
+        if flip:
+            # flip vertically the cluster contour
+            cntr = np.array([1,-1])*cntr + np.array([0,512])
+
         for c in self.lcntrs[i]:
             pt = self.pos_from_cntr(c)
-            dist = cv2.pointPolygonTest(cnt, pt, False)
+            dist = cv2.pointPolygonTest(cntr, pt, False)
             if 0 in debug:
                 print(f'*** dist is {dist}')
             if dist > 0:
                 self.linside += [pt]
+        if test:
+            if i == 22:
+                self.test_img_22(i,cntr)
 
-    def no_div_before_lim(self, nbhours):
+    def no_div_before_lim(self, nbhours, filt_cntrs):
         '''
         No division before nbhours hours
         '''
         new_lpos = []
-        for i,lpos in enumerate(self.filtered_cntrs):
+        for i,lpos in enumerate(filt_cntrs):
             if i < nbhours and len(lpos) > 2:
                 lpos = []
             new_lpos += [lpos]
-        self.filtered_cntrs = new_lpos
+        filt_cntrs = new_lpos
 
-    def filter_cntrs(self, debug=[0,1,2,3,4]):
+    def find_maxi_area(self, lcntrs):
         '''
-        Keep only the contours cntrs inside the contour cnt..
         '''
-        self.filtered_cntrs = []
-        if 2 in debug:
-            print(f'len(self.lcells_area) is {len(self.lcells_area)}')
-            print(f'self.lcells_area[:5] is {self.lcells_area[:5]}')
-            print(f'len(self.lcntrs) is {len(self.lcntrs)}')
-            print(f'self.lcntrs[:5] is {self.lcntrs[:5]}')
+        max_area = 0
+        max_cnt = None
+        for i,cnt in enumerate(lcntrs):
+            if cnt != []:
+                area = cv2.contourArea(cnt)
+                if area > max_area:
+                    max_area = area
+                    max_cnt = cnt
+        print(f'max_area = {max_area}')
+        return max_cnt
+
+    def find_cntrs_in_cells_clusters(self, debug=[0,1]):
+        '''
+        Find the cells inside the cluster area
+        '''
+        print('Dealing with counting in the cluster !!!')
+        max_cnt = self.find_maxi_area(self.cntrs_clusters)
+        print(f'max_cnt is {max_cnt}')
+        for i in range(len(self.lcntrs)):
+            self.list_pts_inside(i, max_cnt, flip=True)
+            self.filtered_cntrs_stat += [self.linside]
+        self.no_div_before_lim(20, self.filtered_cntrs_stat)
+        if 1 in debug:
+            print(f'self.filtered_cntrs_stat is {self.filtered_cntrs_stat}')
+
+    def find_cntrs_in_cells_areas(self, debug=[0,1]):
+        '''
+        Find the cells inside each cells area for each image
+        '''
+        # Go through all the predicted cells areas..
+        # and find cells inside thoses areas..
         for i,cnt_area in enumerate(self.lcells_area):
             print(f'Dealing with cnt area {i}')
             # try:
             if cnt_area != []:
+                # area where cells are detected with debris
                 area = cv2.contourArea(cnt_area[0])
             else:
                 area = 0
@@ -631,11 +744,11 @@ class STEM_CELLS(FGM):
             if area > self.size_min_cloud:
                 print(f'cnt big enough, area is {area}')
                 self.list_pts_inside(i, cnt_area[0])
-                prev_area = cnt_area[0]
+                prev_cnt_area = cnt_area[0]
             else:
                 try:
                     # if area is bad use the last correct area for dscriminating..
-                    self.list_pts_inside(i, prev_area)
+                    self.list_pts_inside(i, prev_cnt_area)
                 except:
                     self.linside = []
 
@@ -645,13 +758,34 @@ class STEM_CELLS(FGM):
             self.filtered_cntrs += [self.linside]
             if 1 in debug:
                 print(f'len(self.linside) = {len(self.linside)}')
-            self.no_div_before_lim(20)
+            self.no_div_before_lim(20, self.filtered_cntrs)
+
+    def filter_cntrs(self, debug=[0,1,2,3,4]):
+        '''
+        Keep only the contours cntrs inside the contour cnt..
+        self.lcells_area : list of all registered cells areas (for image 0, 1 etc..)
+        '''
+        self.filtered_cntrs = []
+        self.filtered_cntrs_stat = []
+        if 2 in debug:
+            print(f'len(self.lcells_area) is {len(self.lcells_area)}')
+            print(f'self.lcells_area[:5] is {self.lcells_area[:5]}')
+            print(f'len(self.lcntrs) is {len(self.lcntrs)}')
+            print(f'self.lcntrs[:5] is {self.lcntrs[:5]}')
+        self.find_cntrs_in_cells_areas()
+        try:
+            self.find_cntrs_in_cells_clusters()
+        except:
+            print('Cannot count the cells in the cells cluster.. ')
         # nb of cells counted without filtering
         self.lnbcells_orig = [len(cnts) for cnts in self.lcntrs]
         # nb of cells after filtering
         self.lnbcells = [len(cnts) for cnts in self.filtered_cntrs]
+        # nb cells with stat method
+        self.lnbcells_stat = [len(cnts) for cnts in self.filtered_cntrs_stat]
         if 4 in debug:
             print(f'### self.lnbcells = {self.lnbcells}')
+            print(f'### self.lnbcells_stat = {self.lnbcells_stat}')
 
     def list_of_cells_area_contours(self, img_pred_area):
         '''
@@ -714,8 +848,8 @@ class STEM_CELLS(FGM):
     def count(self, time_range=None, debug=[]):
         '''
         Count the number of cells in the images of given well (self.well)
-        time_range : indices of the times to be processed..
-        '''
+        Go through all the consecutive images for this well.
+        time_range : indices of the times to be processed..        '''
         if 0 in debug:
             print('In count !!!')
             print(f'self.addr_files is {self.addr_files}')
@@ -739,14 +873,63 @@ class STEM_CELLS(FGM):
                     self.process_a_well(i,f)
             else:
                 self.process_a_well(i,f)
-        # filter cells which are in cells area..
-        self.filter_cntrs()
-        self.max_density_levels(np.array(self.lnbcells))
         # plot all the positions for given well...
         self.plot_all_pos()
+        # filter cells which are in cells area..
+        self.filter_cntrs()
+        self.lnbcells_levels = self.max_density_levels(np.array(self.lnbcells))
+        self.lnbcells_stat_levels = self.max_density_levels(np.array(self.lnbcells_stat))
+
         print(f'len(self.lnbcells) = {len(self.lnbcells)}')
         # save the analyses
         self.save_result_in_dict()
+
+    def full_list(self,ref,old_list):
+        '''
+        '''
+        newl = []
+        for i,l in enumerate(ref):
+            if i>0:
+                prev = ref[i-1]
+                curr = l
+                prev_val = old_list[i-1]
+                newl += [prev_val]*int(curr-prev)
+        return newl
+
+    def score_with_level(self, vec_nb_cells, levels, debug=[0]):
+        '''
+        '''
+        vec_stat = np.array(levels)
+        vec_stat[vec_stat==1]=0
+        lenvec = len(vec_nb_cells)
+        vec_stat = vec_stat[:lenvec]
+        if 0 in debug:
+            print(f'(vec_stat-vec_nb_cells).sum() = { (vec_stat-vec_nb_cells).sum() }')
+            print(f'lenvec = {lenvec}')
+        curr_score = round((1-np.abs(vec_stat-vec_nb_cells).sum()/lenvec)*100,1)
+        print(f'score for ML is {curr_score}')
+
+        return curr_score
+
+    def make_score(self, debug=[0]):
+        '''
+        '''
+        self.curr_score_ml = 0
+        self.curr_score_stat = 0
+        try:
+            hours, nbcells = self.retrieve_times_nb_cells(self.well)
+            print(f'hours, nbcells : {hours, nbcells}')
+            ind_nan_min = np.argwhere(np.isnan(hours)).min()
+            hours = hours[:ind_nan_min-1]
+            nbcells = nbcells[:ind_nan_min-1]
+            lhours = sorted(list(set(hours)))
+            lnbcells = list(set(nbcells))
+            vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
+            self.curr_score_stat = self.score_with_level(self.lnbcells_stat_levels)
+            self.curr_score_ml = self.score_with_level(self.lnbcells_levels)
+
+        except:
+            print('Cannot calculate the score..')
 
     def ins_pic(self, fig, img, pos_size, dic_txt=None, opacity=0.8):
         '''
@@ -861,24 +1044,33 @@ class STEM_CELLS(FGM):
         plt.figure()
         # font size
         self.fsize = 60
-        curr_well = f'well {self.well}, threshold {self.lev_thr} '
+        curr_well = f'well {self.well}, levels '
         # pic result dimensions
         pic_dims = 60
         fig, ax = plt.subplots(1, 1, figsize=(pic_dims, pic_dims))
         ###
-        plt.title(curr_well, fontsize=self.fsize)
+        plt.title(f'{curr_well}\
+                  score stat :{self.curr_score_stat}%,\
+                  score ml :{self.curr_score_ml}%',\
+                  fontsize=self.fsize)
         self.make_axes(ax)
         plt.grid()
         # plot the nb of cells with time
-        ax.plot(np.array(self.lnbcells) + 0.1, linewidth=10, label='nb cells after filtering')
+        ax.plot(np.array(self.lnbcells_levels) + 0.1, linewidth=10, label='nb cells after filtering')
+        # plot the nb of cells with time with stat filtering method
+        ax.plot(np.array(self.lnbcells_stat_levels) + 0.15, linewidth=10, linestyle='dashed', label='nb cells stat')
         # plot the nb of cells with time with no filtering
         ax.plot(self.lnbcells_orig, linewidth=10, label='nb cells orig')
-        # guessing the real number of cells
-        ax.plot(self.l_level, linewidth=10, label='levels after filtering')
+        # # guessing the real number of cells
+        # ax.plot(self.l_level, linewidth=10, label='levels after filtering')
+        try:
+            # Manual annotations
+            hours, nbcells = self.retrieve_times_nb_cells(self.well)
+            print(f'hours, nbcells are {hours, nbcells}')
+            ax.plot(hours, nbcells, linewidth=10, label='manual annotations')
+        except:
+            print(f'Cannot plot manual annotations for well num {self.well}')
         # insert picture for controlling the pred at jumps
-        hours, nbcells = self.retrieve_times_nb_cells(self.well)
-        print(f'hours, nbcells are {hours, nbcells}')
-        ax.plot(hours, nbcells, linewidth=10, label='manual annotations')
         if pic_at_jumps:
             self.ins_img_jumps(fig)
         plt.legend()
@@ -893,8 +1085,14 @@ class STEM_CELLS(FGM):
         fig, ax = plt.subplots(1, 1, figsize=(pic_dims, pic_dims))
         self.make_axes(ax)
         ax.plot(np.array(self.lnbcells), linewidth=10, label='nb cells after filtering')
-        ax.plot(self.l_level, linewidth=10, label='levels after filtering')
-        ax.plot(hours, nbcells, linewidth=10, label='manual annotations')
+        ax.plot(np.array(self.lnbcells_stat), linewidth=10, label='nb cells after filtering with stat')
+        ax.plot(np.array(self.lnbcells_levels) + 0.1, linewidth=10, label='levels ML')
+        ax.plot(np.array(self.lnbcells_stat_levels) + 0.15, linewidth=10, label='levels Stat')
+        # ax.plot(self.l_level, linewidth=10, label='levels after filtering')
+        try:
+            ax.plot(hours, nbcells, linewidth=10, label='manual annotations')
+        except:
+            print(f'Cannot plot manual annotations for well num {self.well}')
         curr_well = f'well {self.well}'
         plt.savefig(opj(self.folder_results, curr_well + '.png'))
 
@@ -910,6 +1108,7 @@ class STEM_CELLS(FGM):
         os.mkdir(self.pred_folder)               # prediction folder
         self.list_imgs(well=well)          # list of the images for one well
         self.count(time_range)               # count the nb of cells through the pictures
+        self.make_score()
         self.plot_levels()                # show the result
 
     def plot_analysis_all_wells(self):
@@ -939,7 +1138,6 @@ class STEM_CELLS(FGM):
         '''
         self.csv(self.dic_tnbc)
 
-
     def reform_dict(self, nest_dict):
         '''
         Reorganize the dictionary for multiindex format
@@ -954,8 +1152,9 @@ class STEM_CELLS(FGM):
     def csv(self, data, debug=[]):
         '''
         Save the data as a csv file in results
+        with the name of the experiment (eg:AD63) and the kind(eg:HSC)
         '''
-        addr_csv = opj(self.folder_results, 'nbcells.csv')
+        addr_csv = opj(self.folder_results, f'nbcells_{self.id_exp}-{self.kind_exp}.csv')
         # handle case where columns are not the same length
         df = pd.DataFrame({ k:pd.Series(val) for k, val in data.items() })
         df.to_csv(addr_csv, index=False, mode='w')

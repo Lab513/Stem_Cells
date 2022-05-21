@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 import os
 import cv2
 import numpy as np
+import pickle as pkl
 op = os.path
 opb, opd, opj = op.basename, op.dirname, op.join
 
@@ -59,10 +60,9 @@ class FIND_CLUSTERS_WITH_GM():
         if show_plot:
             self.control_nb_clusters_effect()
 
-    def draw_clusters_contours(self, addr_fig_pos, debug=[0]):
+    def find_cluster_contour(self, addr_fig_pos):
         '''
-        Contours for the detections supposed to be
-        clouds of points with typical variance and shapes.. 
+        Find the contour of the cluster containing the cells
         '''
         img = cv2.imread(addr_fig_pos)
         img = img.astype('float32')
@@ -76,19 +76,40 @@ class FIND_CLUSTERS_WITH_GM():
         # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         ret, thr = cv2.threshold(pred_img_clusters, 127, 255, 0)      # Threshold
         thr = thr.astype('uint8')
-        cntrs_clusters, _ = cv2.findContours(thr, cv2.RETR_TREE,
-                                    cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        self.cntrs_clusters, _ = cv2.findContours(thr, cv2.RETR_TREE,
+                                             cv2.CHAIN_APPROX_SIMPLE)[-2:]
+
+    def find_maxi_cluster(self, lcntrs):
+        '''
+        Find the cluster with the biggest size ..
+        '''
+        max_area = 0
+        max_cnt = None
+        for i,cnt in enumerate(lcntrs):
+            if cnt != []:
+                area = cv2.contourArea(cnt)
+                if area > max_area:
+                    max_area = area
+                    max_cnt = cnt
+        return max_cnt
+
+    def draw_clusters_contours(self, debug=[0]):
+        '''
+        Contours for the detections supposed to be
+        clouds of points with typical variance and shapes..
+        '''
+        print(f'draw cluster on image of size {self.img.shape}')
         img_with_clust = np.squeeze(self.img)
         img_with_clust = cv2.flip(img_with_clust, 0)
         if 0 in debug:
             print(f'img_with_clust.shape { img_with_clust.shape }')
             print(f'img_with_clust.min() { img_with_clust.min() }')
             print(f'img_with_clust.max() { img_with_clust.max() }')
-        cv2.drawContours(img_with_clust, cntrs_clusters, -1, (0, 255, 255), 1)
+        max_cnt = self.find_maxi_cluster(self.cntrs_clusters)
+        cv2.drawContours(img_with_clust, [max_cnt], -1, (0, 255, 255), 1)
         plt.imshow(img_with_clust)
         plt.savefig( opj(self.folder_results,
                          f'found clusters for well{self.well}.png') )
-
 
     def plot_pts_distrib(self, arr_pts):
         '''
@@ -110,7 +131,8 @@ class FIND_CLUSTERS_WITH_GM():
 
         plt.savefig(addr_fig_pos)
         print('Find the clusters from the detections')
-        self.draw_clusters_contours(addr_fig_pos)
+        self.find_cluster_contour(addr_fig_pos)
+        self.draw_clusters_contours()
 
     def plot_optim_GM(self, arr_pts):
         '''

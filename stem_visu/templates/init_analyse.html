@@ -22,7 +22,7 @@ socket.on('lwells', function(lwells){
     $('#curr_well').text(curr_well)
     $('#curr_proc_pic').attr('src', 'static/results/pred_' + curr_well + '/img0.png')
 
-    $('#nbcells_pic').attr('src', 'static/results/well ' + curr_well + ', threshold 100 .png')
+    $('#nbcells_pic').attr('src', 'static/results/well ' + curr_well + ', levels .png')
     $('#nbcells_pic').css({
            'width' : '100%',
            'height' : '100%'
@@ -39,21 +39,44 @@ socket.on('lwells', function(lwells){
 
  // nb cells max per well
 
- socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
-     var dic_nb_max = JSON.parse(dic_nb_cells_max)
+// socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
+  //   var dic_nb_max = JSON.parse(dic_nb_cells_max)
 
      // Colorspace
 
      // cs = chroma.scale(['yellow', '008ae5'])           // from yellow to blue
-     cs = chroma.scale('OrRd').padding([0.2, 0])
+  //   cs = chroma.scale('OrRd').padding([0.2, 0])
      // https://gka.github.io/chroma.js/#installation
 
-     for (const [w, nbmax] of Object.entries(dic_nb_max)) {
+  //   for (const [w, nbmax] of Object.entries(dic_nb_max)) {
 
         // Color level according to the number max of cells
 
-        $('#' + w).parent().css({'background-color': cs(nbmax/20).toString() })
+      //  $('#' + w).parent().css({'background-color': cs(nbmax/20).toString() })
 
-      }
+    //  }
 
-  })
+//  })
+
+
+  // score by well
+
+  socket.on('dic_scores', function(dic_scores){
+      var dic_score_val = JSON.parse(dic_scores)
+
+      // Colorspace
+
+      cs = chroma.scale('OrRd').padding([0.2, 0])
+
+      for (const [w, values] of Object.entries(dic_score_val)) {
+
+         // Color level according to the score
+
+         alert('values ' + values)
+
+         $('#' + w).parent().css({'background-color': cs(parseFloat(values['stat'])/100.0).toString() })
+         //$('#' + w).parent().css({'background-color': cs(0.1).toString() })
+
+       }
+
+   })

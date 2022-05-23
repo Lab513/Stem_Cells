@@ -2,15 +2,14 @@
 
 socket.on('exp_infos', function(infos){
     var dic_exp_infos = JSON.parse(infos)
-    $('.infos_exp').html('<div> data: ' +
-       dic_exp_infos['dataset'] +
-        '</div>' +
 
-        '<div> model: ' +
-           dic_exp_infos['model'] +
-            '</div>'
+    $('#data_infos').text('data: ' + dic_exp_infos['dataset'])
 
-        )
+    var models = dic_exp_infos['models']
+    for (var m of models){
+        //alert(m)
+        $('#models_list').append($('<li/>').text(m))
+    }
 
 
-     })
+})

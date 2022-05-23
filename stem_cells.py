@@ -297,7 +297,7 @@ class STEM_CELLS(FGM):
 
         return nnbcells
 
-    def increasing_values(self):
+    def increasing_values(self, debug=[]):
         '''
         filter for having increasing values only
         '''
@@ -307,7 +307,8 @@ class STEM_CELLS(FGM):
             if i > 0:
                 prev = self.l_level[i-1]
                 if prev > curr:
-                    print(f'change level from {curr} to {prev}')
+                    if 1 in debug:
+                        print(f'change level from {curr} to {prev}')
                     self.l_level[i] = prev
 
         print(f'self.l_level = {self.l_level}')
@@ -474,9 +475,12 @@ class STEM_CELLS(FGM):
             img_pred = pred_img
         return img_pred
 
-    def make_pred(self, i, f, debug=[]):
+    def make_pred(self, i, f, debug=[0,1,2]):
         '''
+        Make the predictions for cells, areas etc..
         '''
+        if 0 in debug:
+            print(f'predictions for well : {self.well}')
         self.curr_ind = i
         # prepare images
         img = self.prep_img(f)
@@ -486,10 +490,15 @@ class STEM_CELLS(FGM):
             pred = mod.predict(img)
             img_pred = self.from_pred_to_imgpred(pred)
             list_img_pred += [img_pred]
+        if 1 in debug:
+
+            print('all predictions done.. ')
         # prediction with model stem_cells area
         pred_area = self.mod_stem_area.predict(img)
         pred_img_area = pred_area[0]*255
         pred_img_area = pred_img_area.astype('uint8')
+        if 2 in debug:
+            print('pred for stems area done.. ')
 
         return img, list_img_pred, pred_img_area
 
@@ -503,6 +512,17 @@ class STEM_CELLS(FGM):
             file_nb_cntrs = opj(self.pred_folder, f'nb_cells_max.yaml')
             with open(file_nb_cntrs, 'w') as f_w:
                 yaml.dump(self.nb_cells_max, f_w)
+
+    def save_scores(self):
+        '''
+        Scores for each well
+        '''
+        print('saving the scores in scores.yaml')
+        addr_scores = opj(self.pred_folder, f'scores.yaml')
+        with open(addr_scores, 'w') as f_w:
+            scores = { 'ml': f'{self.curr_score_ml}',
+                       'stat': f'{self.curr_score_stat}' }
+            yaml.dump(scores, f_w)
 
     def extract_date(self, f):
         '''
@@ -629,7 +649,8 @@ class STEM_CELLS(FGM):
             arr_pts = np.array(lpts)
             pk_addr = opj(self.folder_results, f'{self.well}_all_pts.pkl')
             pk.dump( arr_pts, open( pk_addr, "wb" ) )
-            print(f'arr_pts[0:20] = {arr_pts[0:20]}')
+            if 1 in debug:
+                print(f'arr_pts[0:20] = {arr_pts[0:20]}')
             # Find optim gaussian mixture with correct clusters number..
             self.find_optim_gm(arr_pts)
             self.plot_optim_GM(arr_pts)
@@ -711,13 +732,14 @@ class STEM_CELLS(FGM):
         print(f'max_area = {max_area}')
         return max_cnt
 
-    def find_cntrs_in_cells_clusters(self, debug=[0,1]):
+    def find_cntrs_in_cells_clusters(self, debug=[]):
         '''
         Find the cells inside the cluster area
         '''
         print('Dealing with counting in the cluster !!!')
         max_cnt = self.find_maxi_area(self.cntrs_clusters)
-        print(f'max_cnt is {max_cnt}')
+        if 0 in debug:
+            print(f'max_cnt is {max_cnt}')
         for i in range(len(self.lcntrs)):
             self.list_pts_inside(i, max_cnt, flip=True)
             self.filtered_cntrs_stat += [self.linside]
@@ -760,7 +782,7 @@ class STEM_CELLS(FGM):
                 print(f'len(self.linside) = {len(self.linside)}')
             self.no_div_before_lim(20, self.filtered_cntrs)
 
-    def filter_cntrs(self, debug=[0,1,2,3,4]):
+    def filter_cntrs(self, debug=[0,1,3,4]):
         '''
         Keep only the contours cntrs inside the contour cnt..
         self.lcells_area : list of all registered cells areas (for image 0, 1 etc..)
@@ -820,7 +842,7 @@ class STEM_CELLS(FGM):
 
         return cmp_img
 
-    def process_a_well(self,i,f):
+    def process_a_well(self,i,f, debug=[1]):
         '''
         '''
         self.dic_pos[i] = []
@@ -829,6 +851,8 @@ class STEM_CELLS(FGM):
         # if i%step_bckgd == 0:
         #     if nb_files-i > range_bckgd+1:
         #         img_bckgd, self.false_cntrs = self.find_false_pos_bckgd(i, range_bckgd)
+        if 1 in debug:
+            print(f'Will make predictions on well {self.well} for image {i}')
         self.img, list_img_pred, img_pred_area = self.make_pred(i, f)
         # contours from the multiple predictions
         cmp_img = self.make_composite_img(i, list_img_pred)
@@ -845,13 +869,14 @@ class STEM_CELLS(FGM):
         ymdh = self.extract_date(f)
         self.ltimes += [ymdh]
 
-    def count(self, time_range=None, debug=[]):
+    def count(self, time_range=None, debug=[0,2]):
         '''
         Count the number of cells in the images of given well (self.well)
         Go through all the consecutive images for this well.
         time_range : indices of the times to be processed..        '''
         if 0 in debug:
             print('In count !!!')
+        if 1 in debug:
             print(f'self.addr_files is {self.addr_files}')
         self.lnbcells = []
         self.lcntrs = []
@@ -867,6 +892,8 @@ class STEM_CELLS(FGM):
         self.dic_pos = {}
         # composite threshold
         self.cmp_thr = 127
+        if 1 in debug:
+            print(f'On the brink to process the images for the well {self.well}')
         for i, f in enumerate(self.addr_files):
             if time_range:
                 if i in time_range:
@@ -898,15 +925,21 @@ class STEM_CELLS(FGM):
 
     def score_with_level(self, vec_nb_cells, levels, debug=[0]):
         '''
+        Score calculation between levels and annotations..
         '''
         vec_stat = np.array(levels)
+        # levels at 1 put at 0 ..
         vec_stat[vec_stat==1]=0
         lenvec = len(vec_nb_cells)
         vec_stat = vec_stat[:lenvec]
+        antiscore  = np.abs(vec_stat-vec_nb_cells).sum()/sum(vec_nb_cells)
         if 0 in debug:
             print(f'(vec_stat-vec_nb_cells).sum() = { (vec_stat-vec_nb_cells).sum() }')
             print(f'lenvec = {lenvec}')
-        curr_score = round((1-np.abs(vec_stat-vec_nb_cells).sum()/lenvec)*100,1)
+            print(f'len(vec_stat) = {len(vec_stat)}')
+            print(f'antiscore = {antiscore}')
+        # score for comparison with manual annotation..
+        curr_score = round((1-antiscore)*100,1)
         print(f'score for ML is {curr_score}')
 
         return curr_score
@@ -916,20 +949,26 @@ class STEM_CELLS(FGM):
         '''
         self.curr_score_ml = 0
         self.curr_score_stat = 0
+        # try:
+        hours, nbcells = self.retrieve_times_nb_cells(self.well)
+        print(f'hours, nbcells : {hours, nbcells}')
         try:
-            hours, nbcells = self.retrieve_times_nb_cells(self.well)
-            print(f'hours, nbcells : {hours, nbcells}')
             ind_nan_min = np.argwhere(np.isnan(hours)).min()
             hours = hours[:ind_nan_min-1]
             nbcells = nbcells[:ind_nan_min-1]
-            lhours = sorted(list(set(hours)))
-            lnbcells = list(set(nbcells))
-            vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
-            self.curr_score_stat = self.score_with_level(self.lnbcells_stat_levels)
-            self.curr_score_ml = self.score_with_level(self.lnbcells_levels)
-
         except:
-            print('Cannot calculate the score..')
+            print('probably no NaN')
+        lhours = sorted(list(set(hours)))
+        lnbcells = list(set(nbcells))
+        print('manual results in full list format.. ')
+        vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
+        self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
+        self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
+        # save the scores for the color in the interface
+        self.save_scores()
+
+        # except:
+        #     print('Cannot calculate the score..')
 
     def ins_pic(self, fig, img, pos_size, dic_txt=None, opacity=0.8):
         '''

@@ -57,10 +57,15 @@ def init_visu():
     '''
     Websocket connection
     '''
+    print('Init visu')
+    # try:
     send_wells_list()
     send_nb_pics()
-    send_nb_cells_max()
+    #send_nb_cells_max()
+    send_scores()
     send_infos()
+    # except:
+    #     print('No data loaded for the moment.. ')
     emit('response', 'Connected')
     server.sleep(0.05)
 
@@ -115,6 +120,27 @@ def send_wells_list():
     emit('lwells', json.dumps(lwells))
 
 
+def send_scores(debug=[0]):
+    '''
+    Send scores
+     for each well to the interface
+     for determining the color of the wells
+    '''
+    lwells = make_list_wells()
+    dic_scores = {}
+    for w in lwells:
+        addr_nbmax = f'stem_visu/static/results/pred_{w}/scores.yaml'
+        try:
+            with open(addr_nbmax) as f_r:
+                scores = yaml.load(f_r, Loader=yaml.FullLoader)
+        except:
+            print('Probably no scores.yaml file')
+        dic_scores[w] = scores
+    if 0 in debug:
+        print(f'dic_scores is { dic_scores }')
+    emit('dic_scores', json.dumps(dic_scores))
+
+
 def send_nb_cells_max(debug=[0]):
     '''
     Send the number of cells_max
@@ -158,9 +184,11 @@ def load_back():
     except:
         print('Probably no folder loaded yet')
 
-def load_forward(name_dataset):
+def load_forward(name_dataset, debug=[0]):
     '''
     '''
+    if 0 in debug:
+        print(f'name_dataset is { name_dataset }')
     with open(f'../../tests/{name_dataset}/dataset_name.txt', 'w') as f:
         f.write(name_dataset)
     sh.move(f'../../tests/{name_dataset}', 'stem_visu/static/results')

@@ -16,6 +16,7 @@ from flask_socketio import SocketIO, emit
 from stem_visu.modules.pages.define_all_pages import *
 from stem_visu.modules.util_interf import *
 
+import re
 import os
 import glob
 import yaml
@@ -58,14 +59,15 @@ def init_visu():
     Websocket connection
     '''
     print('Init visu')
-    # try:
-    send_wells_list()
-    send_nb_pics()
-    #send_nb_cells_max()
-    send_scores()
-    send_infos()
-    # except:
-    #     print('No data loaded for the moment.. ')
+    try:
+        send_wells_list()
+        send_nb_pics()
+        #send_nb_cells_max()
+        send_scores()
+        send_infos()
+        send_dataset_name()
+    except:
+        print('No data loaded for the moment.. ')
     emit('response', 'Connected')
     server.sleep(0.05)
 
@@ -87,7 +89,10 @@ def send_nb_pics():
     lwells = make_list_wells()
     addr_res = f'stem_visu/static/results/pred_{lwells[0]}'
     ll = glob.glob(opj(addr_res, 'img*.png'))
-    nb_pics = int(len(ll)/3)              # not taking superp into account...
+    lll = [l for l in ll if re.findall('(img\d+.png)',l)]
+    print(f'lll is {lll}')
+    # number of images of format imgxx.png
+    nb_pics = int(len(lll))-1
     print(f'nb of pics is { nb_pics }')
     emit('nb_pics', str(nb_pics))
 
@@ -174,8 +179,20 @@ def send_infos():
     emit('exp_infos', json.dumps(infos))
 
 
+def send_dataset_name():
+    '''
+    Send the name of the dataset
+    '''
+    exp_name = f'stem_visu/static/results/dataset_name.txt'
+    with open(exp_name) as f_r:
+        name_data = f_r.readlines()[0].strip()
+        print(f'name_data {name_data}')
+    emit('data_name', name_data)
+
+
 def load_back():
     '''
+    Load back the dataset in tests
     '''
     try:
         with open(f'stem_visu/static/results/dataset_name.txt', 'r') as f:
@@ -184,7 +201,7 @@ def load_back():
     except:
         print('Probably no folder loaded yet')
 
-def load_forward(name_dataset, debug=[0]):
+def load_forward(name_dataset, debug=[0,1]):
     '''
     '''
     if 0 in debug:
@@ -192,6 +209,8 @@ def load_forward(name_dataset, debug=[0]):
     with open(f'../../tests/{name_dataset}/dataset_name.txt', 'w') as f:
         f.write(name_dataset)
     sh.move(f'../../tests/{name_dataset}', 'stem_visu/static/results')
+    if 1 in debug:
+        print('Moved dataset in the visualizer.. ')
 
 @socketio.on('name_dataset')
 def load_new_dataset(name_dataset):

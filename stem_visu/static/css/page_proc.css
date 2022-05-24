@@ -535,6 +535,21 @@
 
   }
 
+  #dataset_fullname {
+
+       position: absolute;
+       box-shadow: 0.5em 0.5em 0.7em;
+       top: 20px;
+       left: 5%;
+       height: 50px;
+       width: 650px;
+       padding-left: 50px;
+       padding-top: 15px;
+       background-color: white;
+       z-index: 100;
+
+    }
+
 #loading_new_dataset {
 
       position: absolute;

@@ -72,7 +72,10 @@ class STEM_CELLS(FGM):
             self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == 'HSC']
         ##
         self.list_models = list_models
-        self.curr_model = list_models[0]
+        if len(list_models) > 1:
+            self.curr_model = 'multi'
+        else:
+            self.curr_model = list_models[0]
         self.addr_folder = addr_folder                 # path for data
         self.id_exp = opb(opd(self.addr_folder))
         self.kind_exp = opb(self.addr_folder)
@@ -109,9 +112,13 @@ class STEM_CELLS(FGM):
         self.max_area = 50                  # maximal area for cell
         self.lev_thr = 100                  # threshold level for segmentation
         self.dic_nbcells = {}
-        self.dic_tnbc = {'well':[],
+        # tnbc : time and nb of cells
+        self.dic_tnbc = {'direct_ML':{'well':[],
                          'time':[],
-                         'nbcells':[]}      # dictionary of time and nb cells
+                         'nbcells':[]},
+                         'stat':{'well':[],
+                         'time':[],
+                         'nbcells':[]}}     # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
 
     def retrieve_times_nb_cells(self, well, debug=[]):
@@ -532,17 +539,15 @@ class STEM_CELLS(FGM):
 
         return ymdh
 
-    def save_result_in_dict(self):
+    def save_result_in_dict(self, kind):
         '''
         Save the results in the dict which will be converted to csv
         '''
-        # self.dic_tnbc['well_' + self.well] = [self.well]*len(self.ltimes)
-        # self.dic_tnbc['time_' + self.well] = self.ltimes
-        # self.dic_tnbc['nbcells_' + self.well] = self.lnbcells
         ##
-        self.dic_tnbc['well'] += [self.well]*len(self.ltimes)
-        self.dic_tnbc['time'] += self.ltimes
-        self.dic_tnbc['nbcells'] += self.lnbcells
+        dic = self.dic_tnbc[kind]
+        dic['well'] += [self.well]*len(self.ltimes)
+        dic['time'] += self.ltimes
+        dic['nbcells'] += self.lnbcells
 
     def find_false_pos_bckgd(self, i, range_bckgd , debug=[0,1]):
         '''
@@ -909,7 +914,8 @@ class STEM_CELLS(FGM):
 
         print(f'len(self.lnbcells) = {len(self.lnbcells)}')
         # save the analyses
-        self.save_result_in_dict()
+        self.save_result_in_dict('direct_ML')
+        self.save_result_in_dict('stat')
 
     def full_list(self,ref,old_list):
         '''
@@ -947,28 +953,28 @@ class STEM_CELLS(FGM):
     def make_score(self, debug=[0]):
         '''
         '''
-        self.curr_score_ml = 0
-        self.curr_score_stat = 0
-        # try:
-        hours, nbcells = self.retrieve_times_nb_cells(self.well)
-        print(f'hours, nbcells : {hours, nbcells}')
         try:
-            ind_nan_min = np.argwhere(np.isnan(hours)).min()
-            hours = hours[:ind_nan_min-1]
-            nbcells = nbcells[:ind_nan_min-1]
+            self.curr_score_ml = 0
+            self.curr_score_stat = 0
+            # try:
+            hours, nbcells = self.retrieve_times_nb_cells(self.well)
+            print(f'hours, nbcells : {hours, nbcells}')
+            try:
+                ind_nan_min = np.argwhere(np.isnan(hours)).min()
+                hours = hours[:ind_nan_min-1]
+                nbcells = nbcells[:ind_nan_min-1]
+            except:
+                print('probably no NaN')
+            lhours = sorted(list(set(hours)))
+            lnbcells = list(set(nbcells))
+            print('manual results in full list format.. ')
+            vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
+            self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
+            self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
+            # save the scores for the color in the interface
+            self.save_scores()
         except:
-            print('probably no NaN')
-        lhours = sorted(list(set(hours)))
-        lnbcells = list(set(nbcells))
-        print('manual results in full list format.. ')
-        vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
-        self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
-        self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
-        # save the scores for the color in the interface
-        self.save_scores()
-
-        # except:
-        #     print('Cannot calculate the score..')
+            print('Cannot calculate the score..')
 
     def ins_pic(self, fig, img, pos_size, dic_txt=None, opacity=0.8):
         '''
@@ -1175,7 +1181,8 @@ class STEM_CELLS(FGM):
         Save all wells with the times
          and the number of cells in the "results" folder
         '''
-        self.csv(self.dic_tnbc)
+        for kind_meth in ['stat', 'direct_ML']:
+            self.csv(self.dic_tnbc[kind_meth], kind_meth)
 
     def reform_dict(self, nest_dict):
         '''
@@ -1188,12 +1195,12 @@ class STEM_CELLS(FGM):
 
         return ref_dict
 
-    def csv(self, data, debug=[]):
+    def csv(self, data, kind_meth, debug=[]):
         '''
         Save the data as a csv file in results
         with the name of the experiment (eg:AD63) and the kind(eg:HSC)
         '''
-        addr_csv = opj(self.folder_results, f'nbcells_{self.id_exp}-{self.kind_exp}.csv')
+        addr_csv = opj(self.folder_results, f'nbcells_{self.id_exp}-{self.kind_exp}-{kind_meth}.csv')
         # handle case where columns are not the same length
         df = pd.DataFrame({ k:pd.Series(val) for k, val in data.items() })
         df.to_csv(addr_csv, index=False, mode='w')

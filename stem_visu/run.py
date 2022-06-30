@@ -63,11 +63,15 @@ def init_visu():
         send_wells_list()
         send_nb_pics()
         #send_nb_cells_max()
-        send_scores()
+
         send_infos()
         send_dataset_name()
     except:
         print('No data loaded for the moment.. ')
+    try:
+        send_scores()
+    except:
+        print('Probably no scores.. ')
     emit('response', 'Connected')
     server.sleep(0.05)
 

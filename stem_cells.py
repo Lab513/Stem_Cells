@@ -542,12 +542,16 @@ class STEM_CELLS(FGM):
     def save_result_in_dict(self, kind):
         '''
         Save the results in the dict which will be converted to csv
+        kind : stat or direct_ML
         '''
         ##
         dic = self.dic_tnbc[kind]
         dic['well'] += [self.well]*len(self.ltimes)
         dic['time'] += self.ltimes
-        dic['nbcells'] += self.lnbcells
+        if kind = 'stat':
+            dic['nbcells'] += self.lnbcells_stat_levels
+        elif kind = 'direct_ML':
+            dic['nbcells'] += self.lnbcells_levels
 
     def find_false_pos_bckgd(self, i, range_bckgd , debug=[0,1]):
         '''
@@ -884,6 +888,7 @@ class STEM_CELLS(FGM):
         if 1 in debug:
             print(f'self.addr_files is {self.addr_files}')
         self.lnbcells = []
+        self.lnbcells_stat = []
         self.lcntrs = []
         self.lcells_area = []
         self.ltimes = []

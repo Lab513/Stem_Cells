@@ -548,9 +548,11 @@ class STEM_CELLS(FGM):
         dic = self.dic_tnbc[kind]
         dic['well'] += [self.well]*len(self.ltimes)
         dic['time'] += self.ltimes
-        if kind = 'stat':
+        # nbcells for stat method
+        if kind == 'stat':
             dic['nbcells'] += self.lnbcells_stat_levels
-        elif kind = 'direct_ML':
+        # nbcells for direct ML method
+        elif kind == 'direct_ML':
             dic['nbcells'] += self.lnbcells_levels
 
     def find_false_pos_bckgd(self, i, range_bckgd , debug=[0,1]):

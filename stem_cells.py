@@ -539,7 +539,7 @@ class STEM_CELLS(FGM):
 
         return ymdh
 
-    def save_result_in_dict(self, kind):
+    def save_result_in_dict(self, kind, debug=[0]):
         '''
         Save the results in the dict which will be converted to csv
         kind : stat or direct_ML
@@ -548,12 +548,15 @@ class STEM_CELLS(FGM):
         dic = self.dic_tnbc[kind]
         dic['well'] += [self.well]*len(self.ltimes)
         dic['time'] += self.ltimes
+        if 0 in debug:
+            print(f'len(self.lnbcells_stat_levels) { len(self.lnbcells_stat_levels) }')
+            print(f'len(self.lnbcells_levels) { len(self.lnbcells_levels) }')
         # nbcells for stat method
         if kind == 'stat':
-            dic['nbcells'] += self.lnbcells_stat_levels
+            dic['nbcells'] += list(self.lnbcells_stat_levels)
         # nbcells for direct ML method
         elif kind == 'direct_ML':
-            dic['nbcells'] += self.lnbcells_levels
+            dic['nbcells'] += list(self.lnbcells_levels)
 
     def find_false_pos_bckgd(self, i, range_bckgd , debug=[0,1]):
         '''
@@ -916,8 +919,8 @@ class STEM_CELLS(FGM):
         self.plot_all_pos()
         # filter cells which are in cells area..
         self.filter_cntrs()
-        self.lnbcells_levels = self.max_density_levels(np.array(self.lnbcells))
-        self.lnbcells_stat_levels = self.max_density_levels(np.array(self.lnbcells_stat))
+        self.lnbcells_levels = self.max_density_levels(np.array(self.lnbcells))[:len(self.lnbcells)]
+        self.lnbcells_stat_levels = self.max_density_levels(np.array(self.lnbcells_stat))[:len(self.lnbcells)]
 
         print(f'len(self.lnbcells) = {len(self.lnbcells)}')
         # save the analyses

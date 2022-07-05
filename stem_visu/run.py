@@ -205,16 +205,37 @@ def load_back():
     except:
         print('Probably no folder loaded yet')
 
+
 def load_forward(name_dataset, debug=[0,1]):
     '''
     '''
     if 0 in debug:
         print(f'name_dataset is { name_dataset }')
+    # remove results folder
+    res_fold = 'stem_visu/static/results'
+    print('Try to remove "results" folder !!!!')
+    try:
+        sh.rmtree(res_fold)
+    except:
+        print('Cannot erase "results" folder')
+    # try:
+    #     os.mkdir(res_fold)
+    # except:
+    #     print('Cannot make "results" folder with os.mkdir')
+    #     try:
+    #         os.makedirs(res_fold)
+    #     except:
+    #         print('failed with os.makedirs')
     with open(f'../../tests/{name_dataset}/dataset_name.txt', 'w') as f:
         f.write(name_dataset)
+        addr_ds = f'../../tests/{name_dataset}'
+        print(f'dataset_name.txt written in {addr_ds}')
+
+    # copy dataset as folder named "results"
     sh.move(f'../../tests/{name_dataset}', 'stem_visu/static/results')
     if 1 in debug:
         print('Moved dataset in the visualizer.. ')
+
 
 @socketio.on('name_dataset')
 def load_new_dataset(name_dataset):

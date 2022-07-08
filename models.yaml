@@ -17,4 +17,8 @@ stem_few_clean_ep20 : stem_few_clean-ep20-bs4_date31-03-2022-15-14
 stem_few_clean_ep10 : stem_few_clean-ep10-bs4_date31-03-2022-14-50
 stem_area_ep5 : training_area_cells-ep5-bs4_date08-04-2022-11-47
 stem_only_flat_ep15 : stem_only_flat-ep15-bs4_date19-04-2022-17-18
+stem_only_flat_precise_ep15 : stem_only_flat_precise-ep15-bs4_date06-07-2022-16-00
+stem_only_flat_prec_close_ep15 : stem_only_flat_prec_close-ep15-bs4_date06-07-2022-18-34
 cluster_pos_ep10 : clustering_pos-ep10-bs4_date29-04-2022-10-51
+stem_small_ep15 : stem_small-ep15-bs4_date07-07-2022-19-28
+stem_small_no_stripe_ep15 : stem_small_no_stripe-ep15-bs4_date08-07-2022-17-18

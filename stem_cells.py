@@ -59,7 +59,10 @@ class STEM_CELLS(FGM):
                  model_area='stem_area_ep5',
                  model_clustering='cluster_pos_ep10',
                  manual_annotations=r"manual_annot/AD63_manual.xlsx",
-                 min_area=2):
+                 min_area=2,
+                 cell_type='HSC',
+                 cmp_thr=200,
+                 span=None):
         '''
         addr_folder: address of the images
         model : model shortcut used for counting the cells
@@ -69,8 +72,12 @@ class STEM_CELLS(FGM):
         if manual_annotations:
             xls = pd.ExcelFile( fr"manual_annot/{manual_annotations}" )
             self.manual_df = xls.parse(0)
-            self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == 'HSC']
+            self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == cell_type]
         ##
+        # font size
+        self.fsize = 60
+        # composite threshold
+        self.cmp_thr = cmp_thr
         self.list_models = list_models
         if len(list_models) > 1:
             self.curr_model = 'multi'
@@ -82,6 +89,10 @@ class STEM_CELLS(FGM):
         self.folder_results = f'results_mod_{self.curr_model}'\
                               f'_data_{self.id_exp}-{self.kind_exp}'\
                               f'_{self.date()}'
+        # suffix for spanning range..
+        if span:
+            suffix_name_proc = self.make_span_suffix(span)
+            self.folder_results += f'_{suffix_name_proc}'
         curr_list_mod = []
         with open('models.yaml') as f:
             dic_models = yaml.load(f, Loader=yaml.FullLoader)
@@ -121,8 +132,21 @@ class STEM_CELLS(FGM):
                          'nbcells':[]}}     # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
 
+    def make_span_suffix(self, span):
+        '''
+        Suffix for the span range in the folder name..
+        '''
+        lspan, nspan = span
+        if len(lspan) > 1:
+            spansuff = f'{lspan[0]}-{lspan[-1]}_{nspan}'
+        else:
+            spansuff = f'{lspan[0]}_{nspan}'
+
+        return spansuff
+
     def retrieve_times_nb_cells(self, well, debug=[]):
         '''
+        Retrieving the time and number of cells from the Excel file.
         '''
         if 0 in debug:
             print(f'Retrieving manual annotations for well {well}')
@@ -188,6 +212,17 @@ class STEM_CELLS(FGM):
                     .replace('m', ''))
         return nb
 
+    def find_time_interval(self):
+        '''
+        Find the interval of time between the acquisitions.
+        '''
+        n1 = self.mdh_to_nb(self.lmdh[1], make_lmdh=False)
+        n0 = self.mdh_to_nb(self.lmdh[0], make_lmdh=False)
+        self.delta_exp = n1-n0
+        print(f'Time interval between images is {self.delta_exp} hours')
+        if self.delta_exp > 10:
+            print('There is an issue with the time interval')
+
     def list_imgs(self, well=None, debug=[]):
         '''
         List of the images for a given well
@@ -199,10 +234,12 @@ class STEM_CELLS(FGM):
         self.addr_files = glob.glob(glob_string)
         if 1 in debug:
             print(f'self.addr_files is {self.addr_files}')
+        print(f'Nb of images to process is {len(self.addr_files)}')
         # sort the files names with date
         self.addr_files.sort(key=lambda x: self.mdh_to_nb(x))
         # list month day hour
         self.lmdh.sort(key=lambda x: self.mdh_to_nb(x, make_lmdh=False))
+        self.find_time_interval()
         self.mb = MB(self.addr_files)
 
     def prep_img(self, addr_img):
@@ -701,7 +738,7 @@ class STEM_CELLS(FGM):
                         f'cnt with pos for 22.png'),
                     mask)
 
-    def list_pts_inside(self, i, cntr, flip=False, test=False, debug=[0]):
+    def list_pts_inside(self, i, cntr, flip=False, test=False, debug=[]):
         '''
         Find the points inside the contour cnt..
         '''
@@ -761,14 +798,15 @@ class STEM_CELLS(FGM):
         if 1 in debug:
             print(f'self.filtered_cntrs_stat is {self.filtered_cntrs_stat}')
 
-    def find_cntrs_in_cells_areas(self, debug=[0,1]):
+    def find_cntrs_in_cells_areas(self, debug=[]):
         '''
         Find the cells inside each cells area for each image
         '''
         # Go through all the predicted cells areas..
         # and find cells inside thoses areas..
         for i,cnt_area in enumerate(self.lcells_area):
-            print(f'Dealing with cnt area {i}')
+            if 0 in debug:
+                print(f'Dealing with cnt area {i}')
             # try:
             if cnt_area != []:
                 # area where cells are detected with debris
@@ -832,6 +870,22 @@ class STEM_CELLS(FGM):
         ll = [c  for c in self.cntrs_area if cv2.contourArea(c) > self.size_min_cloud] # else np.array([(0,0)])
         self.lcells_area += [ll]
 
+    # def image_filtered_high(self, img_pred, size_cell_max=12):
+    #     '''
+    #     Remove shapes too large which may be some fusion..
+    #     '''
+    #     # contours for stem cells area
+    #     kernel = np.ones((2,2),np.uint8)
+    #     img_pred = cv2.erode(img_pred,kernel,iterations = 1)
+    #     cntrs_detect = self.find_cntrs(img_pred, thresh=1)
+    #     # save contours not too big
+    #     filtered = [c  for c in cntrs_detect if cv2.contourArea(c) > size_cell_max]
+    #     _, h, w, _ = self.img.shape
+    #     mask = np.zeros((h, w), np.uint8)
+    #     cv2.drawContours(mask, filtered, -1, (255, 255, 255), -1) # fill contour
+    #
+    #     return mask
+
     def make_composite_img(self, ind, list_img_pred, debug=[]):
         '''
         from images in list_img_pred, make the composite image cmp_img
@@ -839,11 +893,15 @@ class STEM_CELLS(FGM):
         '''
         _, h, w, _ = self.img.shape
         cmp_img = np.zeros((h, w), np.uint8) # composite
-        for i,img_pred in enumerate(list_img_pred):
+
+
+        for i, img_pred in enumerate(list_img_pred):
             # save the prediction used for fusion
             cv2.imwrite(opj(self.pred_folder,
                             f'img{ind}_pred_model{i}.png'),
                          img_pred)
+            # remove when cells are fusionned by remove large shapes of cells..
+            #filtered = self.image_filtered_high( np.squeeze(img_pred) )
             if 0 in debug:
                 print(f'type(img_pred) is {type(img_pred)}')
                 print(f'img_pred.shape is {img_pred.shape}')
@@ -905,8 +963,7 @@ class STEM_CELLS(FGM):
         range_bckgd = 15
         self.size_min_cloud = 5e3
         self.dic_pos = {}
-        # composite threshold
-        self.cmp_thr = 127
+
         if 1 in debug:
             print(f'On the brink to process the images for the well {self.well}')
         for i, f in enumerate(self.addr_files):
@@ -927,7 +984,7 @@ class STEM_CELLS(FGM):
         self.save_result_in_dict('direct_ML')
         self.save_result_in_dict('stat')
 
-    def full_list(self,ref,old_list):
+    def full_list(self,ref,old_list, debug=[0]):
         '''
         '''
         newl = []
@@ -936,10 +993,10 @@ class STEM_CELLS(FGM):
                 prev = ref[i-1]
                 curr = l
                 prev_val = old_list[i-1]
-                newl += [prev_val]*int(curr-prev)
+                newl += [prev_val]*int((curr-prev)/self.delta_exp)
         return newl
 
-    def score_with_level(self, vec_nb_cells, levels, debug=[0]):
+    def score_with_level(self, vec_nb_cells, levels, debug=[0,1]):
         '''
         Score calculation between levels and annotations..
         '''
@@ -947,9 +1004,12 @@ class STEM_CELLS(FGM):
         # levels at 1 put at 0 ..
         vec_stat[vec_stat==1]=0
         lenvec = len(vec_nb_cells)
+        # adapt the length of vec_stat to length of manual annotations
         vec_stat = vec_stat[:lenvec]
+        print(f'len(vec_stat) { len(vec_stat) }')
+        print(f'len(vec_nb_cells) { len(vec_nb_cells) }')
         antiscore  = np.abs(vec_stat-vec_nb_cells).sum()/sum(vec_nb_cells)
-        if 0 in debug:
+        if 1 in debug:
             print(f'(vec_stat-vec_nb_cells).sum() = { (vec_stat-vec_nb_cells).sum() }')
             print(f'lenvec = {lenvec}')
             print(f'len(vec_stat) = {len(vec_stat)}')
@@ -960,31 +1020,39 @@ class STEM_CELLS(FGM):
 
         return curr_score
 
-    def make_score(self, debug=[0]):
+    def make_score(self, debug=[0,1,2]):
         '''
+        Comparison with annotations
         '''
+        # try:
+        self.curr_score_ml = 0
+        self.curr_score_stat = 0
+        # try:
+
+        hours, nbcells = self.retrieve_times_nb_cells(self.well)
+        print(f'hours, nbcells : {hours, nbcells}')
         try:
-            self.curr_score_ml = 0
-            self.curr_score_stat = 0
-            # try:
-            hours, nbcells = self.retrieve_times_nb_cells(self.well)
-            print(f'hours, nbcells : {hours, nbcells}')
-            try:
-                ind_nan_min = np.argwhere(np.isnan(hours)).min()
-                hours = hours[:ind_nan_min-1]
-                nbcells = nbcells[:ind_nan_min-1]
-            except:
-                print('probably no NaN')
-            lhours = sorted(list(set(hours)))
-            lnbcells = list(set(nbcells))
-            print('manual results in full list format.. ')
-            vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
-            self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
-            self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
-            # save the scores for the color in the interface
-            self.save_scores()
+            ind_nan_min = np.argwhere(np.isnan(hours)).min()
+            hours = hours[:ind_nan_min-1]
+            nbcells = nbcells[:ind_nan_min-1]
         except:
-            print('Cannot calculate the score..')
+            print('probably no NaN')
+        lhours = sorted(list(set(hours)))
+        lnbcells = list(set(nbcells))
+        if 1 in debug:
+            print(f'len(lhours) {len(lhours)}')
+            print(f'len(lnbcells) {len(lnbcells)}')
+        print('manual results in full list format.. ')
+        vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
+        if 1 in debug:
+            print(f'In make_score, len(vec_nb_cells) is {len(vec_nb_cells)}')
+        self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
+        self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
+        # save the scores for the color in the interface
+        self.save_scores()
+
+        # except:
+        #     print('Cannot calculate the score..')
 
     def ins_pic(self, fig, img, pos_size, dic_txt=None, opacity=0.8):
         '''
@@ -1092,30 +1160,41 @@ class STEM_CELLS(FGM):
         ax.yaxis.set_major_formatter(plt.FuncFormatter(self.format_funcy))
         plt.ylabel('number of cells', fontsize=self.fsize)
 
-    def plot_levels(self, pic_at_jumps=False):
+    def make_time_axis(self,vec):
+        '''
+        '''
+        time_axis = self.delta_exp*np.arange(len(vec))
+
+        return time_axis
+
+    def plot_levels(self, pic_at_jumps=False, debug=[0]):
         '''
         plot the results
         '''
         plt.figure()
-        # font size
-        self.fsize = 60
+        plt.rcParams["axes.edgecolor"] = "white"
+
         curr_well = f'well {self.well}, levels '
         # pic result dimensions
         pic_dims = 60
         fig, ax = plt.subplots(1, 1, figsize=(pic_dims, pic_dims))
         ###
-        plt.title(f'{curr_well}\
-                  score stat :{self.curr_score_stat}%,\
-                  score ml :{self.curr_score_ml}%',\
-                  fontsize=self.fsize)
         self.make_axes(ax)
         plt.grid()
+        if 0 in debug:
+            print(f'Length lnbcells_levels is { len(self.lnbcells_levels) }')
+            print(f'Length lnbcells_stat_levels is { len(self.lnbcells_stat_levels) }')
+            print(f'Length lnbcells_orig is { len(self.lnbcells_orig) }')
+
         # plot the nb of cells with time
-        ax.plot(np.array(self.lnbcells_levels) + 0.1, linewidth=10, label='nb cells after filtering')
+        ta0 = self.make_time_axis(self.lnbcells_levels)
+        ax.plot(ta0, np.array(self.lnbcells_levels) + 0.1, linewidth=10, label='nb cells after filtering')
         # plot the nb of cells with time with stat filtering method
-        ax.plot(np.array(self.lnbcells_stat_levels) + 0.15, linewidth=10, linestyle='dashed', label='nb cells stat')
+        ta1 = self.make_time_axis(self.lnbcells_stat_levels)
+        ax.plot(ta1, np.array(self.lnbcells_stat_levels) + 0.15, linewidth=10, linestyle='dashed', label='nb cells stat')
         # plot the nb of cells with time with no filtering
-        ax.plot(self.lnbcells_orig, linewidth=10, label='nb cells orig')
+        ta2 = self.make_time_axis(self.lnbcells_orig)
+        ax.plot(ta2, self.lnbcells_orig, linewidth=10, label='nb cells orig')
         # # guessing the real number of cells
         # ax.plot(self.l_level, linewidth=10, label='levels after filtering')
         try:
@@ -1128,8 +1207,12 @@ class STEM_CELLS(FGM):
         # insert picture for controlling the pred at jumps
         if pic_at_jumps:
             self.ins_img_jumps(fig)
-        plt.legend()
-        plt.savefig(opj(self.folder_results, curr_well + '.png'))
+        plt.title(f'{curr_well}\
+                      score stat :{self.curr_score_stat}%,\
+                      score ml :{self.curr_score_ml}%',\
+                      fontsize=self.fsize)
+        plt.legend(fontsize=self.fsize)
+        plt.savefig(opj(self.folder_results, curr_well + '.png'), facecolor='w')
 
         pk.dump( np.array(self.lnbcells), open( opj(self.folder_results, f'nbcells {self.well}.pkl'), "wb" ) )
 
@@ -1157,6 +1240,8 @@ class STEM_CELLS(FGM):
         '''
         if name_well:
             print(f'current well is {well}')
+        # try:
+
         self.list_jumps = []                # list of the detected divisions
         self.lmdh = []                               # list day/hours
         self.pred_folder = opj(self.folder_results, f'pred_{well}')
@@ -1166,11 +1251,15 @@ class STEM_CELLS(FGM):
         self.make_score()
         self.plot_levels()                # show the result
 
+        # except:
+        #     print(f'Cannot deal with well {well}')
+
     def plot_analysis_all_wells(self):
         '''
         Synoptic figure of the evolution of
          the number of cells in all the wells.
         '''
+        print('Synthetic view of the results')
         pic_dims = 60
         fig, ax = plt.subplots(1, 1, figsize=(pic_dims, pic_dims))
         for k, v in self.dic_nbcells.items():

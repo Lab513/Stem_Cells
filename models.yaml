@@ -22,3 +22,5 @@ stem_only_flat_prec_close_ep15 : stem_only_flat_prec_close-ep15-bs4_date06-07-20
 cluster_pos_ep10 : clustering_pos-ep10-bs4_date29-04-2022-10-51
 stem_small_ep15 : stem_small-ep15-bs4_date07-07-2022-19-28
 stem_small_no_stripe_ep15 : stem_small_no_stripe-ep15-bs4_date08-07-2022-17-18
+stem_small_filtered_ep15 : stem_small_filtered-ep15-bs4_date09-07-2022-17-12
+stem_grey_ep15 : stem_grey-ep15-bs4_date12-07-2022-10-55

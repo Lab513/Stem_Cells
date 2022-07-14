@@ -32,8 +32,13 @@ $('.well_content').click(function(){
      var curr_nbcells_pic = $('#nbcells_pic').attr('src').split('?')[0]
      curr_nbcells_pic = repl_well_img_nbcells(curr_nbcells_pic, well_id)
      $('#nbcells_pic').attr('src', curr_nbcells_pic + '?' + new Date().getTime())    // change the pic with nb of cells
+     //----
+     var addr_cluster_stat = 'static/results/found clusters for well' + well_id + '.png' + '?' + new Date().getTime()
+     $('#stat_cluster_pic').attr('src', addr_cluster_stat)
+     //-----
      $('.well_content').parent().css({'border':'unset'})
-     $(this).parent().css({ 'border' : 'dashed red' })
+     // dashed contour indicating the current well
+     $(this).parent().css({ 'border' : 'dashed green' })
 })
 
 

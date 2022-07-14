@@ -6,6 +6,7 @@ from modules.find_mean_bckgrnd import MEAN_BACKGROUND as MB
 from modules.gap_statistics import optimalK
 from modules.find_cells_with_Gaussian_Mixture import FIND_CLUSTERS_WITH_GM as FGM
 from datetime import datetime
+from time import time
 from pathlib import Path
 from matplotlib import pyplot as plt
 from tensorflow.keras import models
@@ -364,7 +365,7 @@ class STEM_CELLS(FGM):
                                  debug=[]):
         '''
         Find the levels using the density
-        drange : intervall on which is calculated the density
+        drange : density range is the intervall on which is calculated the density
         '''
         print('make max_density_levels')
         self.l_level = []
@@ -492,6 +493,7 @@ class STEM_CELLS(FGM):
 
     def save_well_pics(self, i, img, cntrs, cntrs_area):
         '''
+        Save images related to a given well
         '''
         # save predictions contours..
         self.save_pred(i, img, cntrs, cntrs_area)
@@ -978,6 +980,8 @@ class STEM_CELLS(FGM):
         self.filter_cntrs()
         self.lnbcells_levels = self.max_density_levels(np.array(self.lnbcells))[:len(self.lnbcells)]
         self.lnbcells_stat_levels = self.max_density_levels(np.array(self.lnbcells_stat))[:len(self.lnbcells)]
+        # set to for comparing to annotations..
+        self.lnbcells_stat_levels[self.lnbcells_stat_levels==1]=0
 
         print(f'len(self.lnbcells) = {len(self.lnbcells)}')
         # save the analyses
@@ -1001,8 +1005,8 @@ class STEM_CELLS(FGM):
         Score calculation between levels and annotations..
         '''
         vec_stat = np.array(levels)
-        # levels at 1 put at 0 ..
-        vec_stat[vec_stat==1]=0
+        # # levels at 1 put at 0 ..
+        # vec_stat[vec_stat==1]=0
         lenvec = len(vec_nb_cells)
         # adapt the length of vec_stat to length of manual annotations
         vec_stat = vec_stat[:lenvec]
@@ -1027,32 +1031,32 @@ class STEM_CELLS(FGM):
         # try:
         self.curr_score_ml = 0
         self.curr_score_stat = 0
-        # try:
-
-        hours, nbcells = self.retrieve_times_nb_cells(self.well)
-        print(f'hours, nbcells : {hours, nbcells}')
         try:
-            ind_nan_min = np.argwhere(np.isnan(hours)).min()
-            hours = hours[:ind_nan_min-1]
-            nbcells = nbcells[:ind_nan_min-1]
-        except:
-            print('probably no NaN')
-        lhours = sorted(list(set(hours)))
-        lnbcells = list(set(nbcells))
-        if 1 in debug:
-            print(f'len(lhours) {len(lhours)}')
-            print(f'len(lnbcells) {len(lnbcells)}')
-        print('manual results in full list format.. ')
-        vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
-        if 1 in debug:
-            print(f'In make_score, len(vec_nb_cells) is {len(vec_nb_cells)}')
-        self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
-        self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
-        # save the scores for the color in the interface
-        self.save_scores()
 
-        # except:
-        #     print('Cannot calculate the score..')
+            hours, nbcells = self.retrieve_times_nb_cells(self.well)
+            print(f'hours, nbcells : {hours, nbcells}')
+            try:
+                ind_nan_min = np.argwhere(np.isnan(hours)).min()
+                hours = hours[:ind_nan_min-1]
+                nbcells = nbcells[:ind_nan_min-1]
+            except:
+                print('probably no NaN')
+            lhours = sorted(list(set(hours)))
+            lnbcells = list(set(nbcells))
+            if 1 in debug:
+                print(f'len(lhours) {len(lhours)}')
+                print(f'len(lnbcells) {len(lnbcells)}')
+            print('manual results in full list format.. ')
+            vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
+            if 1 in debug:
+                print(f'In make_score, len(vec_nb_cells) is {len(vec_nb_cells)}')
+            self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
+            self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
+            # save the scores for the color in the interface
+            self.save_scores()
+
+        except:
+            print('Cannot calculate the score..')
 
     def ins_pic(self, fig, img, pos_size, dic_txt=None, opacity=0.8):
         '''
@@ -1192,9 +1196,13 @@ class STEM_CELLS(FGM):
         # plot the nb of cells with time with stat filtering method
         ta1 = self.make_time_axis(self.lnbcells_stat_levels)
         ax.plot(ta1, np.array(self.lnbcells_stat_levels) + 0.15, linewidth=10, linestyle='dashed', label='nb cells stat')
+
         # plot the nb of cells with time with no filtering
         ta2 = self.make_time_axis(self.lnbcells_orig)
         ax.plot(ta2, self.lnbcells_orig, linewidth=10, label='nb cells orig')
+        ##
+        ta3 = self.make_time_axis(self.lnbcells_stat)
+        ax.plot(ta3, np.array(self.lnbcells_stat) + 0.15, linewidth=10, linestyle='dashed', label='nb cells after cluster stat filtering')
         # # guessing the real number of cells
         # ax.plot(self.l_level, linewidth=10, label='levels after filtering')
         try:
@@ -1238,21 +1246,26 @@ class STEM_CELLS(FGM):
         '''
         Make an analysis of the number of cells in one well
         '''
+        t0 = time()
         if name_well:
             print(f'current well is {well}')
-        # try:
+        try:
 
-        self.list_jumps = []                # list of the detected divisions
-        self.lmdh = []                               # list day/hours
-        self.pred_folder = opj(self.folder_results, f'pred_{well}')
-        os.mkdir(self.pred_folder)               # prediction folder
-        self.list_imgs(well=well)          # list of the images for one well
-        self.count(time_range)               # count the nb of cells through the pictures
-        self.make_score()
-        self.plot_levels()                # show the result
+            self.list_jumps = []                # list of the detected divisions
+            self.lmdh = []                               # list day/hours
+            self.pred_folder = opj(self.folder_results, f'pred_{well}')
+            os.mkdir(self.pred_folder)               # prediction folder
+            self.list_imgs(well=well)          # list of the images for one well
+            self.count(time_range)               # count the nb of cells through the pictures
+            self.make_score()
+            self.plot_levels()                # show the result
 
-        # except:
-        #     print(f'Cannot deal with well {well}')
+        except:
+            print(f'Cannot deal with well {well}')
+        t1 = time()
+        ttime = round((t1-t0)/60, 2)
+        # time for one well.. 
+        print(f'time for analysis of the well {well} is {ttime}')
 
     def plot_analysis_all_wells(self):
         '''

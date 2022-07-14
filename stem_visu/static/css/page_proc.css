@@ -525,8 +525,8 @@
      box-shadow: 0.5em 0.5em 0.7em;
      top: 20px;
      left: 45%;
-     height: 170px;
-     width: 300px;
+     height: 200px;
+     width: 350px;
      padding-left: 50px;
      padding-top: 15px;
      background-color: white;
@@ -557,3 +557,36 @@
       right: 30px;
 
   }
+
+  #kind_plate {
+
+        position: absolute;
+        bottom: -600px;
+        left: 100px;
+        height: 600px;
+        width: 300px;
+        padding-left: 50px;
+
+  }
+
+  #select_kind_plate > .bootstrap-select  {
+          width: 120px;
+    }
+
+  /* Panel cluster stat */
+
+  .cluster_stat_panel {
+
+       position: absolute;
+       box-shadow: 0.5em 0.5em 0.7em;
+       top: 40px;
+       left: 1400px;
+       height: 400px;
+       width: 400px;
+       padding-left: 50px;
+       padding-top: 50px;
+       background-color: white;
+       z-index: 10;
+       opacity:1;
+
+    }

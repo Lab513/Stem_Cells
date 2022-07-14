@@ -6,13 +6,18 @@
 
 <div class='infos_exp' >
   <div id='data_infos'> </div>
+  <br>
   <div >models: </div>
   <ul id="models_list"></ul>
+
+  <script > $('.infos_exp').draggable() </script>
 
 
  </div>
 
-<div class='wells_panel' > </div>
+<div class='wells_panel' >
+  {% include 'kind_plate.html' %}
+</div>
 
 <script>
 
@@ -22,6 +27,7 @@
 
 </script>
 
+<!-- graph nb cells -->
 
 <div class='nbcells_panel' >
 
@@ -31,6 +37,18 @@
 </div>
 
 <script> $('.nbcells_panel').draggable() </script>
+
+<!-- panel stat cluster -->
+
+<div class='cluster_stat_panel' >
+
+     <img id="stat_cluster_pic" style="line-height : 20px; width : 320px" ></img>
+
+</div>
+
+<script> $('.cluster_stat_panel').draggable() </script>
+
+<!-- image well -->
 
 {% include 'image_panel.html' %}
 

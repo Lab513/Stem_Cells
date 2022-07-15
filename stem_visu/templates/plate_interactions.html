@@ -1,5 +1,6 @@
 // Change of well
 
+var curr_cell_border = 'dashed green'
 
 function repl_well(pic, well_id) {
 
@@ -38,8 +39,9 @@ $('.well_content').click(function(){
      //-----
      $('.well_content').parent().css({'border':'unset'})
      // dashed contour indicating the current well
-     $(this).parent().css({ 'border' : 'dashed green' })
+     $(this).parent().css({ 'border' : curr_cell_border })
 })
 
+{% include 'change_kind_plate.html' %}
 
 {% include 'move_in_plate_with_keys.html' %}

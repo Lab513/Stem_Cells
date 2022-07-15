@@ -88,7 +88,8 @@ def main_page(debug=1):
 
 def send_nb_pics():
     '''
-    Retrieve and send the number of pictures
+    Retrieve and send the number of temporal acquisitions for each well
+    to know where we are in the navigation.
     '''
     lwells = make_list_wells()
     addr_res = f'stem_visu/static/results/pred_{lwells[0]}'
@@ -246,6 +247,19 @@ def load_new_dataset(name_dataset):
     load_back()
     load_forward(name_dataset)
     init_visu()
+
+
+@socketio.on('change_plate_kind')
+def change_plate_kind(kind_plate):
+    '''
+    kind_plate
+    '''
+    print(f'kind_plate is {kind_plate}')
+    if kind_plate == 'nbcells':
+        # send_wells_list()
+        send_nb_cells_max()
+    elif kind_plate == 'score_annot':
+        send_scores()
 
 
 @socketio.on('mess')

@@ -1,5 +1,12 @@
-$('#select_kind_plate').on('change', function() {
+$('#choose_kind_plate').on('change', function() {
 
-      alert('change the kind of plate')
+      var kind =  $(this).val()
+      socket.emit("change_plate_kind", kind)
+      if (kind == 'nbcells') {
+        curr_cell_border = 'dashed red'
+      }
+      else if (kind == 'score_annot') {
+        curr_cell_border = 'dashed green'
+      }
 
 });

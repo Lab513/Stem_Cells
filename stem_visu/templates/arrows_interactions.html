@@ -41,7 +41,7 @@ key('x', function(){
       $('#read_pics').selectpicker('render')
       click_arr = true
    }
-   
+
    else{
      arrow_hover()
      $('#read_pics').val('hover')
@@ -78,7 +78,7 @@ function arrow_hover(){                                                         
 
    //------------------- Change how the images are read
 
-   $('#read_pics').on('change', function() {                                                     // select how images are ead (click or hover)
+   $('#read_pics').on('change', function() {                            // select how images are ead (click or hover)
 
        read_pic_kind = $(this).val()
        //alert(read_pic_kind)

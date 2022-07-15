@@ -40,24 +40,24 @@ socket.on('lwells', function(lwells){
 
  // nb cells max per well
 
-// socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
-  //   var dic_nb_max = JSON.parse(dic_nb_cells_max)
+socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
+    var dic_nb_max = JSON.parse(dic_nb_cells_max)
 
      // Colorspace
 
-     // cs = chroma.scale(['yellow', '008ae5'])           // from yellow to blue
-  //   cs = chroma.scale('OrRd').padding([0.2, 0])
-     // https://gka.github.io/chroma.js/#installation
+    cs = chroma.scale(['yellow', '008ae5'])           // from yellow to blue
+    // cs = chroma.scale('OrRd').padding([0.2, 0])
+    // https://gka.github.io/chroma.js/#installation
 
-  //   for (const [w, nbmax] of Object.entries(dic_nb_max)) {
+    for (const [w, nbmax] of Object.entries(dic_nb_max)) {
 
         // Color level according to the number max of cells
 
-      //  $('#' + w).parent().css({'background-color': cs(nbmax/20).toString() })
+       $('#' + w).parent().css({'background-color': cs(nbmax/20).toString() })
 
-    //  }
+     }
 
-//  })
+ })
 
 
   // score by well

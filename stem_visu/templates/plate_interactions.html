@@ -16,6 +16,7 @@ function repl_well_img_nbcells(pic, well_id) {
 
 
 $('.well_content').click(function(){
+  
      //alert($(this).attr('id'))
      var well_id = $(this).attr('id')
      $('#curr_well').text(well_id)
@@ -40,6 +41,7 @@ $('.well_content').click(function(){
      $('.well_content').parent().css({'border':'unset'})
      // dashed contour indicating the current well
      $(this).parent().css({ 'border' : curr_cell_border })
+
 })
 
 {% include 'change_kind_plate.html' %}

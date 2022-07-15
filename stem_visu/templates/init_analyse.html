@@ -12,6 +12,7 @@ socket.on('nb_pics', function(nb_pics){
  })                                                     // number of images
 img_index = 0                                           // current image index
 
+
 // Retrieve the processed wells
 
 socket.on('lwells', function(lwells){
@@ -30,7 +31,7 @@ socket.on('lwells', function(lwells){
     $('#stat_cluster_pic').attr('src', 'static/results/found clusters for well' + curr_well + '.png')
 
 
-  // Color in black unprocessed wells ..
+  // Color black for the unprocessed wells ..
 
   $('.well_unit').css({'background-color':'black'})
   for (w of list_wells){
@@ -45,7 +46,10 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
 
      // Colorspace
 
-    cs = chroma.scale(['yellow', '008ae5'])           // from yellow to blue
+    col0 = 'yellow'
+    col1 = '008ae5'
+    cs = chroma.scale([col0,col1])           // from yellow to blue
+    generateColors(col0,col1,null,3)
     // cs = chroma.scale('OrRd').padding([0.2, 0])
     // https://gka.github.io/chroma.js/#installation
 
@@ -66,8 +70,14 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
       var dic_score_val = JSON.parse(dic_scores)
 
       // Colorspace
+      var coeff = 100.0
 
-      cs = chroma.scale('OrRd').padding([0.2, 0])
+      col0 = 0.2
+      col1 = 0
+      cs = chroma.scale('OrRd').padding([col0,col1])
+      // rgb0 = chroma.scale('OrRd')(col0*coeff).rgb()
+      // rgb1 = chroma.scale('OrRd')(col1*coeff).rgb()
+      generateColors(col0,col1,'OrRd', 11.66)
 
       for (const [w, values] of Object.entries(dic_score_val)) {
 
@@ -75,7 +85,7 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
 
          //alert('values ' + values)
 
-         $('#' + w).parent().css({'background-color': cs(parseFloat(values['stat'])/100.0).toString() })
+         $('#' + w).parent().css({'background-color': cs( parseFloat(values['stat'])/coeff ).toString() })
          //$('#' + w).parent().css({'background-color': cs(0.1).toString() })
 
        }

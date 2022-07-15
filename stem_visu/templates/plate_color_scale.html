@@ -1,0 +1,35 @@
+<!-- plate kind -->
+
+<div id="color_scale">
+
+<script >
+
+
+  const generateColors = (color1, color2, name, coeff) => {
+
+    if (name == null){
+          var curr_cs = chroma.scale([color1, color2])
+        }
+    else {
+          var curr_cs = chroma.scale(name).padding([color1, color2])
+        }
+
+    const colPal = curr_cs.colors(8)
+    $('#color_scale').empty()
+
+    colPal.forEach((color,i) => {
+
+      col_item = $('<div/>')
+      col_item.css({'background': color})
+              .addClass('col_elem')
+              .append( $('<span/>').text(Math.round(i*coeff,0)) )
+      $('#color_scale').append(col_item)
+
+    })
+  }
+
+
+
+</script>
+
+</div>

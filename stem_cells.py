@@ -548,16 +548,14 @@ class STEM_CELLS(FGM):
 
         return img, list_img_pred, pred_img_area
 
-    def save_nb_cells_max(self, i, cntrs):
+    def save_nb_cells_max_in_filtered(self):
         '''
-        Save the number of cells detected..
+        Save the number max of cells in the filterd cells..
         '''
-        if self.nb_cells_max < len(cntrs):
-            self.nb_cells_max = len(cntrs)
-        if i == len(self.addr_files)-1:
-            file_nb_cntrs = opj(self.pred_folder, f'nb_cells_max.yaml')
-            with open(file_nb_cntrs, 'w') as f_w:
-                yaml.dump(self.nb_cells_max, f_w)
+        nb_cells_max = max(self.lnbcells_stat)
+        file_nb_cntrs = opj(self.pred_folder, f'nb_cells_max.yaml')
+        with open(file_nb_cntrs, 'w') as f_w:
+            yaml.dump(nb_cells_max, f_w)
 
     def save_scores(self):
         '''
@@ -938,7 +936,7 @@ class STEM_CELLS(FGM):
         #self.nb_pos = self.find_nb_false_pos(f, img_bckgd, cntrs)
         # Save images of the contours : cells and cells area
         self.save_well_pics(i, self.img, cntrs, self.cntrs_area)
-        self.save_nb_cells_max(i, cntrs)
+
 
         ymdh = self.extract_date(f)
         self.ltimes += [ymdh]
@@ -987,6 +985,8 @@ class STEM_CELLS(FGM):
         # save the analyses
         self.save_result_in_dict('direct_ML')
         self.save_result_in_dict('stat')
+        #self.save_nb_cells_max(i, cntrs)
+        self.save_nb_cells_max_in_filtered()
 
     def full_list(self,ref,old_list, debug=[0]):
         '''
@@ -1264,7 +1264,7 @@ class STEM_CELLS(FGM):
             print(f'Cannot deal with well {well}')
         t1 = time()
         ttime = round((t1-t0)/60, 2)
-        # time for one well.. 
+        # time for one well..
         print(f'time for analysis of the well {well} is {ttime}')
 
     def plot_analysis_all_wells(self):

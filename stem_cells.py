@@ -12,8 +12,10 @@ from matplotlib import pyplot as plt
 from tensorflow.keras import models
 from sklearn.metrics import pairwise_distances_argmin
 from scipy.linalg import norm
+from scipy.optimize import curve_fit
 from modules.BC import correctbaseline
 
+import math as m
 import pandas as pd
 import glob
 import re
@@ -36,7 +38,9 @@ class Logger(object):
     '''
     def __init__(self, folder_results):
         self.terminal = sys.stdout
-        self.log = open(opj(folder_results, 'log.dat'), "a")
+        addr_log = opj(folder_results, 'log.dat')
+        print(f'address for log.dat is {addr_log} ')
+        self.log = open(addr_log, "a")
 
     def write(self, message):
         self.terminal.write(message)
@@ -197,13 +201,16 @@ class STEM_CELLS(FGM):
                          'models': self.list_models}
             yaml.dump(dic_infos, f_w)
 
-    def mdh_to_nb(self, l, make_lmdh=True):
+    def mdh_to_nb(self, l, make_lmdh=True, debug=[0]):
         '''
         from month-day-hour format to
          the number mdh for sorting the dates.
         02m12d03h --> 21203
         '''
         mdh = re.findall(r'\d+m\d+d_\d+h', l)[0]
+        if 0 in debug:
+            print(f'mdh = {mdh}')
+            print(f'mdh[0] = {mdh[0]}')
         if mdh[0] == '0':
             mdh = mdh[1:]
         if make_lmdh:
@@ -211,6 +218,8 @@ class STEM_CELLS(FGM):
         nb = int(mdh.replace('d_', '')
                     .replace('h', '')
                     .replace('m', ''))
+        if 1 in debug:
+            print(f'nb = {nb}')
         return nb
 
     def find_time_interval(self):
@@ -240,7 +249,12 @@ class STEM_CELLS(FGM):
         self.addr_files.sort(key=lambda x: self.mdh_to_nb(x))
         # list month day hour
         self.lmdh.sort(key=lambda x: self.mdh_to_nb(x, make_lmdh=False))
+        if 2 in debug:
+            print(f'self.addr_files after sorting is {self.addr_files}')
+        if 3 in debug:
+            print(f'self.lmdh after sorting is {self.lmdh}')
         self.find_time_interval()
+        # Mean Background MB
         self.mb = MB(self.addr_files)
 
     def prep_img(self, addr_img):
@@ -506,7 +520,7 @@ class STEM_CELLS(FGM):
         # save contours with save_area_with_detections
         self.save_area_with_detections(i, cntrs_area, cntrs)
 
-    def from_pred_to_imgpred(self, pred, debug=[]):
+    def from_pred_to_imgpred(self, pred, debug=[0]):
         '''
         '''
         if 0 in debug:
@@ -515,13 +529,14 @@ class STEM_CELLS(FGM):
         pred_img = pred[0]*255
         pred_img = pred_img.astype('uint8')
 
-        try:
-            img_pred = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
-        except:
-            img_pred = pred_img
-        return img_pred
+        # try:
+        #     img_pred = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
+        # except:
+        #     img_pred = pred_img
 
-    def make_pred(self, i, f, debug=[0,1,2]):
+        return pred_img
+
+    def make_pred(self, i, f, debug=[0,1,2,3]):
         '''
         Make the predictions for cells, areas etc..
         '''
@@ -532,18 +547,21 @@ class STEM_CELLS(FGM):
         img = self.prep_img(f)
         # prediction with models stem_cells
         list_img_pred = []
-        for mod in self.list_mod_stem:
+        for i,mod in enumerate(self.list_mod_stem):
+            if 1 in debug:
+                print(f'pred with model {i}')
             pred = mod.predict(img)
             img_pred = self.from_pred_to_imgpred(pred)
+            if 1 in debug:
+                print(f'img_pred.shape is {img_pred.shape}')
             list_img_pred += [img_pred]
-        if 1 in debug:
-
+        if 2 in debug:
             print('all predictions done.. ')
         # prediction with model stem_cells area
         pred_area = self.mod_stem_area.predict(img)
         pred_img_area = pred_area[0]*255
         pred_img_area = pred_img_area.astype('uint8')
-        if 2 in debug:
+        if 3 in debug:
             print('pred for stems area done.. ')
 
         return img, list_img_pred, pred_img_area
@@ -870,23 +888,7 @@ class STEM_CELLS(FGM):
         ll = [c  for c in self.cntrs_area if cv2.contourArea(c) > self.size_min_cloud] # else np.array([(0,0)])
         self.lcells_area += [ll]
 
-    # def image_filtered_high(self, img_pred, size_cell_max=12):
-    #     '''
-    #     Remove shapes too large which may be some fusion..
-    #     '''
-    #     # contours for stem cells area
-    #     kernel = np.ones((2,2),np.uint8)
-    #     img_pred = cv2.erode(img_pred,kernel,iterations = 1)
-    #     cntrs_detect = self.find_cntrs(img_pred, thresh=1)
-    #     # save contours not too big
-    #     filtered = [c  for c in cntrs_detect if cv2.contourArea(c) > size_cell_max]
-    #     _, h, w, _ = self.img.shape
-    #     mask = np.zeros((h, w), np.uint8)
-    #     cv2.drawContours(mask, filtered, -1, (255, 255, 255), -1) # fill contour
-    #
-    #     return mask
-
-    def make_composite_img(self, ind, list_img_pred, debug=[]):
+    def make_composite_img(self, ind, list_img_pred, debug=[0]):
         '''
         from images in list_img_pred, make the composite image cmp_img
         Make the fusion of the predictions contours
@@ -894,15 +896,16 @@ class STEM_CELLS(FGM):
         _, h, w, _ = self.img.shape
         cmp_img = np.zeros((h, w), np.uint8) # composite
 
-
         for i, img_pred in enumerate(list_img_pred):
+            if 0 in debug:
+                print(f'img_pred.shape = {img_pred.shape}')
             # save the prediction used for fusion
             cv2.imwrite(opj(self.pred_folder,
                             f'img{ind}_pred_model{i}.png'),
                          img_pred)
             # remove when cells are fusionned by remove large shapes of cells..
             #filtered = self.image_filtered_high( np.squeeze(img_pred) )
-            if 0 in debug:
+            if 1 in debug:
                 print(f'type(img_pred) is {type(img_pred)}')
                 print(f'img_pred.shape is {img_pred.shape}')
                 print(f'cmp_img.shape is {cmp_img.shape}')
@@ -914,7 +917,7 @@ class STEM_CELLS(FGM):
 
         return cmp_img
 
-    def process_a_well(self,i,f, debug=[1]):
+    def process_a_well(self,i,f, debug=[1,2]):
         '''
         '''
         self.dic_pos[i] = []
@@ -925,7 +928,10 @@ class STEM_CELLS(FGM):
         #         img_bckgd, self.false_cntrs = self.find_false_pos_bckgd(i, range_bckgd)
         if 1 in debug:
             print(f'Will make predictions on well {self.well} for image {i}')
+        # make the predictions and save them in a list
         self.img, list_img_pred, img_pred_area = self.make_pred(i, f)
+        if 2 in debug:
+            print(f'len(list_img_pred) = {len(list_img_pred)}')
         # contours from the multiple predictions
         cmp_img = self.make_composite_img(i, list_img_pred)
         # find contours on composite image
@@ -978,7 +984,7 @@ class STEM_CELLS(FGM):
         self.filter_cntrs()
         self.lnbcells_levels = self.max_density_levels(np.array(self.lnbcells))[:len(self.lnbcells)]
         self.lnbcells_stat_levels = self.max_density_levels(np.array(self.lnbcells_stat))[:len(self.lnbcells)]
-        # set to for comparing to annotations..
+        # set 1 to 0 for comparing with the manual annotations..
         self.lnbcells_stat_levels[self.lnbcells_stat_levels==1]=0
 
         print(f'len(self.lnbcells) = {len(self.lnbcells)}')
@@ -987,6 +993,73 @@ class STEM_CELLS(FGM):
         self.save_result_in_dict('stat')
         #self.save_nb_cells_max(i, cntrs)
         self.save_nb_cells_max_in_filtered()
+        try:
+            self.fit_exp_to_filtered()
+        except:
+            print('Fitting an exponential failed..')
+
+    def simple_exp(self, x, m, t, b):
+        '''
+        Simple exponential
+        '''
+        return m * np.exp(t * x) + b
+
+    def fit_exp_to_filtered(self, debug=[0]):
+        '''
+        FIt an exponential on the curve of the filtered nb of cells..
+        '''
+        print('### Performing the exponential fit')
+        ys = np.array(self.lnbcells_stat)
+        xs = np.arange(len(ys))
+
+        # perform the fit
+        p0 = (2000, .1, 0) # starting values
+        params, cv = curve_fit(self.simple_exp, xs, ys, p0)
+        m, t, b = params
+
+        # determine quality of the fit
+        sqdiff = np.square(ys - self.simple_exp(xs, m, t, b))
+        sqdiff_from_mean = np.square(ys - np.mean(ys))
+        rSquared = 1 - np.sum(sqdiff) / np.sum(sqdiff_from_mean)
+        print(f"R² = {rSquared}")
+
+        # plot the results
+        plt.figure()
+        plt.plot(xs, ys, label="filtered")
+        self.fit_exp_curve = self.simple_exp(xs, m, t, b)
+        # extract the levels from exponential
+        xlevel, self.levels_stat_exp = self.levels_from_fit_exp()
+        plt.plot(xs, self.fit_exp_curve, '--', label="fitted")
+        # plot levels from exponential
+        plt.plot(xlevel, self.levels_stat_exp, '-', label="levels from fit")
+        plt.title("Fitted Exponential Curve")
+        addr_fit = opj(self.folder_results, f'exp_fit_{self.well}.png')
+        plt.xlabel('time')
+        plt.ylabel('nbcells')
+        plt.savefig(addr_fit)
+
+        # inspect the parameters
+        print(f"Y = {round(m,2)} * e^({round(t,2)} * x) + {round(b,2)}")
+        print(f"Tau = {round(t,2)} ")
+
+    def levels_from_fit_exp(self, debug=[]):
+        '''
+        Make the levels from the exponential curve..
+        '''
+        ys = []
+        xs = []
+        ll = np.floor(self.fit_exp_curve)
+        for i,l in enumerate(ll):
+            newl = m.floor(int(l))
+            if 0 in debug:
+                print(newl)
+            if i!=0:
+                if newl != ll[i-1]:
+                    ys += [ll[i-1]]
+                    xs += [i]
+            ys += [newl]
+            xs += [i]
+        return xs,ys
 
     def full_list(self,ref,old_list, debug=[0]):
         '''
@@ -1199,10 +1272,11 @@ class STEM_CELLS(FGM):
 
         # plot the nb of cells with time with no filtering
         ta2 = self.make_time_axis(self.lnbcells_orig)
-        ax.plot(ta2, self.lnbcells_orig, linewidth=10, label='nb cells orig')
-        ##
+        ax.plot(ta2, self.lnbcells_orig, linewidth=10, linestyle='dashed', label='nb cells orig')
+
+        ## plot after stat filtering..
         ta3 = self.make_time_axis(self.lnbcells_stat)
-        ax.plot(ta3, np.array(self.lnbcells_stat) + 0.15, linewidth=10, linestyle='dashed', label='nb cells after cluster stat filtering')
+        ax.plot(ta3, np.array(self.lnbcells_stat) + 0.15, linewidth=10, label='nb cells after cluster stat filtering')
         # # guessing the real number of cells
         # ax.plot(self.l_level, linewidth=10, label='levels after filtering')
         try:
@@ -1251,14 +1325,20 @@ class STEM_CELLS(FGM):
             print(f'current well is {well}')
         try:
 
-            self.list_jumps = []                # list of the detected divisions
-            self.lmdh = []                               # list day/hours
+            # list of the detected divisions
+            self.list_jumps = []
+            # list day/hours
+            self.lmdh = []
             self.pred_folder = opj(self.folder_results, f'pred_{well}')
-            os.mkdir(self.pred_folder)               # prediction folder
-            self.list_imgs(well=well)          # list of the images for one well
-            self.count(time_range)               # count the nb of cells through the pictures
+            # prediction folder
+            os.mkdir(self.pred_folder)
+            # list of the images for one well
+            self.list_imgs(well=well)
+            # count the nb of cells through the pictures
+            self.count(time_range)
             self.make_score()
-            self.plot_levels()                # show the result
+            # plot the levels found
+            self.plot_levels()
 
         except:
             print(f'Cannot deal with well {well}')

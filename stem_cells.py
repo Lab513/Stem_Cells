@@ -60,14 +60,16 @@ class STEM_CELLS(FGM):
     '''
 
     def __init__(self, addr_folder,
-                 list_models=['stem_ep30'],
+                 list_stem_models=['stem_ep30'],
                  model_area='stem_area_ep5',
                  model_clustering='cluster_pos_ep10',
                  manual_annotations=r"manual_annot/AD63_manual.xlsx",
                  min_area=2,
                  cell_type='HSC',
                  cmp_thr=200,
-                 span=None):
+                 span=None,
+                 nproc=None,
+                 rand_Id=None):
         '''
         addr_folder: address of the images
         model : model shortcut used for counting the cells
@@ -83,46 +85,25 @@ class STEM_CELLS(FGM):
         self.fsize = 60
         # composite threshold
         self.cmp_thr = cmp_thr
-        self.list_models = list_models
-        if len(list_models) > 1:
+        self.list_stem_models = list_stem_models
+        if len(list_stem_models) > 1:
             self.curr_model = 'multi'
         else:
-            self.curr_model = list_models[0]
+            self.curr_model = list_stem_models[0]
         self.addr_folder = addr_folder                 # path for data
         self.id_exp = opb(opd(self.addr_folder))
         self.kind_exp = opb(self.addr_folder)
+
         self.folder_results = f'results_mod_{self.curr_model}'\
                               f'_data_{self.id_exp}-{self.kind_exp}'\
                               f'_{self.date()}'
-        # suffix for spanning range..
-        if span:
-            suffix_name_proc = self.make_span_suffix(span)
-            self.folder_results += f'_{suffix_name_proc}'
-        curr_list_mod = []
-        with open('models.yaml') as f:
-            dic_models = yaml.load(f, Loader=yaml.FullLoader)
-            # full name of the current stems model
-            for model in list_models:
-                curr_list_mod += [dic_models[model]]
-            # full name of the current stem model area
-            curr_mod_area = dic_models[model_area]
-            curr_mod_cluster = dic_models[model_clustering]
-
-        addr_area_model = Path('models') / curr_mod_area
-        addr_cluster_model = Path('models') / curr_mod_cluster
-
-        print(f'addr_area_model is {addr_area_model}')
-        print(f'addr_cluster_model is {addr_cluster_model}')
-        ####
-        self.list_mod_stem = []
-        # load the models for stem cells detection
-        for curr_mod in curr_list_mod:
-            addr_model = Path('models') / curr_mod
-            print(f'addr_model is {addr_model}')
-            self.list_mod_stem += [ models.load_model(addr_model) ]
-        # load the model for finding the area where are the stem cells
-        self.mod_stem_area = models.load_model(addr_area_model)
-        self.mod_cluster_pos = models.load_model(addr_cluster_model)
+        self.add_suffixes_to_procfolder_name(span, rand_Id)
+        print(f'*** Folder for the results ***')
+        print(f'            { self.folder_results } ')
+        ##
+        self.loading_all_models( list_stem_models,
+                                 model_area,
+                                 model_clustering )
         self.prepare_result_folder()        # create the folder for the results
         self.min_area = min_area            # minimal area for cell
         self.max_area = 50                  # maximal area for cell
@@ -136,6 +117,62 @@ class STEM_CELLS(FGM):
                          'time':[],
                          'nbcells':[]}}     # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
+
+    def add_suffixes_to_procfolder_name(self, span, rand_Id):
+        '''
+        '''
+        # suffix for spanning range..
+        if span:
+            suffix_name_proc = self.make_span_suffix(span)
+            self.folder_results += f'_{suffix_name_proc}'
+        # suffix for proc identification..
+        if rand_Id:
+            suffix_rand_proc = self.make_id_numproc(rand_Id, nproc)
+            self.folder_results += f'_{suffix_rand_proc}'
+
+    def loading_all_models(self,list_stem_models,
+                                model_area,
+                                model_clustering):
+        '''
+        '''
+        curr_list_mod = []
+        with open('models.yaml') as f:
+            dic_models = yaml.load(f, Loader=yaml.FullLoader)
+            # full name of the current stems model
+            for model in list_stem_models:
+                curr_list_mod += [dic_models[model]]
+            # full name of the current stem model area
+            curr_mod_area = dic_models[model_area]
+            curr_mod_cluster = dic_models[model_clustering]
+
+        addr_area_model = Path('models') / curr_mod_area
+        addr_cluster_model = Path('models') / curr_mod_cluster
+        print('-----------Area models ------------')
+        print(f'addr_area_model is {addr_area_model}')
+        print(f'addr_cluster_model is {addr_cluster_model}')
+        tload0 = time()
+        # load the model for finding the area where are the stem cells
+        self.mod_stem_area = models.load_model(addr_area_model)
+        self.mod_cluster_pos = models.load_model(addr_cluster_model)
+        print('----------------------------------')
+        ####
+        self.list_mod_stem = []
+        # load the models for stem cells detection
+        print('----------- stem cells models ------------')
+        for curr_mod in curr_list_mod:
+            addr_model = Path('models') / curr_mod
+            print(f'addr_model is {addr_model}')
+            self.list_mod_stem += [ models.load_model(addr_model) ]
+        print('----------------------------------')
+        tload1 = time()
+        print(f'time for loading the models is {round((tload1-tload0)/60,1)} min')
+
+    def make_id_numproc(self, rand_Id, nproc):
+        '''
+        rand_Id : Id for the experiment
+        nproc : num of processing in the batch
+        '''
+        return f'{rand_Id}_num{nproc}'
 
     def make_span_suffix(self, span):
         '''
@@ -198,15 +235,17 @@ class STEM_CELLS(FGM):
         with open(f'{self.folder_results}/proc_infos.yaml', 'w') as f_w:
             # save model name in proc_infos.yaml
             dic_infos = {'dataset': self.last_two_levels(self.addr_folder),
-                         'models': self.list_models}
+                         'models': self.list_stem_models}
             yaml.dump(dic_infos, f_w)
 
-    def mdh_to_nb(self, l, make_lmdh=True, debug=[0]):
+    def mdh_to_nb(self, l, make_lmdh=True, debug=[]):
         '''
         from month-day-hour format to
          the number mdh for sorting the dates.
         02m12d03h --> 21203
         '''
+        if 0 in debug:
+            print(f'sentence is {l}')
         mdh = re.findall(r'\d+m\d+d_\d+h', l)[0]
         if 0 in debug:
             print(f'mdh = {mdh}')
@@ -222,10 +261,12 @@ class STEM_CELLS(FGM):
             print(f'nb = {nb}')
         return nb
 
-    def find_time_interval(self):
+    def find_time_interval(self, debug=[]):
         '''
         Find the interval of time between the acquisitions.
         '''
+        if 0 in debug:
+            print(f'self.lmdh = {self.lmdh}')
         n1 = self.mdh_to_nb(self.lmdh[1], make_lmdh=False)
         n0 = self.mdh_to_nb(self.lmdh[0], make_lmdh=False)
         self.delta_exp = n1-n0
@@ -309,7 +350,7 @@ class STEM_CELLS(FGM):
     def find_cntrs(self, img,
                    thresh=None,
                    filt_surface=False,
-                   debug=[1]):
+                   debug=[]):
         '''
         Find the contours in the thresholded prediction
         '''
@@ -324,21 +365,30 @@ class STEM_CELLS(FGM):
         thr = thr.astype('uint8')
         cntrs, _ = cv2.findContours(thr, cv2.RETR_TREE,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2:]
-        if 1 in debug:
+        if filt_surface:
+            print('using surface filtering')
+            print(f'surf min = {self.min_area}')
+            print(f'surf max = {self.max_area}')
+            cntrs = self.surface_filtering(cntrs)
+        return cntrs
+
+    def surface_filtering(self, cntrs, debug=[]):
+        '''
+        '''
+        if 0 in debug:
             print(f'Before filtering, len(cntrs) = {len(cntrs)}')
         if len(cntrs) > 7:
             for c in cntrs:
-                if 2 in debug:
+                if 1 in debug:
                     print(f'cv2.contourArea(c) is {cv2.contourArea(c)}')
         # filter on area
-        if filt_surface:
-            filt_cntrs = [c for c in cntrs if self.max_area
-                          > cv2.contourArea(c) > self.min_area]
-            cntrs = filt_cntrs
 
-        if 1 in debug:
+        filt_cntrs = [c for c in cntrs if self.max_area
+                      > cv2.contourArea(c) > self.min_area]
+        cntrs = filt_cntrs
+
+        if 0 in debug:
             print(f'After filtering, len(cntrs) = {len(cntrs)}')
-
         return cntrs
 
     def correct_up(self, nbcells):
@@ -410,7 +460,7 @@ class STEM_CELLS(FGM):
 
         return self.l_level
 
-    def draw_pred_contours(self, img, cntrs, debug=[0]):
+    def draw_pred_contours(self, img, cntrs, debug=[]):
         '''
         '''
         if 0 in debug:
@@ -520,7 +570,7 @@ class STEM_CELLS(FGM):
         # save contours with save_area_with_detections
         self.save_area_with_detections(i, cntrs_area, cntrs)
 
-    def from_pred_to_imgpred(self, pred, debug=[0]):
+    def from_pred_to_imgpred(self, pred, debug=[]):
         '''
         '''
         if 0 in debug:
@@ -536,7 +586,7 @@ class STEM_CELLS(FGM):
 
         return pred_img
 
-    def make_pred(self, i, f, debug=[0,1,2,3]):
+    def make_pred(self, i, f, debug=[2]):
         '''
         Make the predictions for cells, areas etc..
         '''
@@ -594,7 +644,7 @@ class STEM_CELLS(FGM):
 
         return ymdh
 
-    def save_result_in_dict(self, kind, debug=[0]):
+    def save_result_in_dict(self, kind, debug=[]):
         '''
         Save the results in the dict which will be converted to csv
         kind : stat or direct_ML
@@ -687,6 +737,7 @@ class STEM_CELLS(FGM):
 
     def add_to_list_pos(self, i,cntrs):
         '''
+        Add positions of new contours to the list of all the positions
         '''
         for c in cntrs:
             self.dic_pos[i].append(self.pos_from_cntr(c))
@@ -888,7 +939,7 @@ class STEM_CELLS(FGM):
         ll = [c  for c in self.cntrs_area if cv2.contourArea(c) > self.size_min_cloud] # else np.array([(0,0)])
         self.lcells_area += [ll]
 
-    def make_composite_img(self, ind, list_img_pred, debug=[0]):
+    def make_composite_img(self, ind, list_img_pred, debug=[]):
         '''
         from images in list_img_pred, make the composite image cmp_img
         Make the fusion of the predictions contours
@@ -1323,25 +1374,25 @@ class STEM_CELLS(FGM):
         t0 = time()
         if name_well:
             print(f'current well is {well}')
-        try:
+        # try:
 
-            # list of the detected divisions
-            self.list_jumps = []
-            # list day/hours
-            self.lmdh = []
-            self.pred_folder = opj(self.folder_results, f'pred_{well}')
-            # prediction folder
-            os.mkdir(self.pred_folder)
-            # list of the images for one well
-            self.list_imgs(well=well)
-            # count the nb of cells through the pictures
-            self.count(time_range)
-            self.make_score()
-            # plot the levels found
-            self.plot_levels()
+        # list of the detected divisions
+        self.list_jumps = []
+        # list day/hours
+        self.lmdh = []
+        self.pred_folder = opj(self.folder_results, f'pred_{well}')
+        # prediction folder
+        os.mkdir(self.pred_folder)
+        # list of the images for one well
+        self.list_imgs(well=well)
+        # count the nb of cells through the pictures
+        self.count(time_range)
+        self.make_score()
+        # plot the levels found
+        self.plot_levels()
 
-        except:
-            print(f'Cannot deal with well {well}')
+        # except:
+        #     print(f'Cannot deal with well {well}')
         t1 = time()
         ttime = round((t1-t0)/60, 2)
         # time for one well..

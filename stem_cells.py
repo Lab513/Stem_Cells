@@ -81,6 +81,7 @@ class STEM_CELLS(FGM):
             self.manual_df = xls.parse(0)
             self.hsc = self.manual_df.loc[self.manual_df['Cell_type'] == cell_type]
         ##
+        self.all_scores = {}
         # font size
         self.fsize = 60
         # composite threshold
@@ -117,6 +118,14 @@ class STEM_CELLS(FGM):
                          'time':[],
                          'nbcells':[]}}     # dictionary of time and nb cells
         self.list_tnbc = []                 # list of time and nb cells
+
+    def extract_date(self, f):
+        '''
+        '''
+        nimg = opb(f)
+        ymdh = re.findall(r'\d+y\d+m\d+d_\d+h', nimg)[0]
+
+        return ymdh
 
     def add_suffixes_to_procfolder_name(self, span, rand_Id, nproc):
         '''
@@ -268,8 +277,9 @@ class STEM_CELLS(FGM):
             print(f'self.lmdh = {self.lmdh}')
         n1 = self.mdh_to_nb(self.lmdh[1], make_lmdh=False)
         n0 = self.mdh_to_nb(self.lmdh[0], make_lmdh=False)
+        # step in hours between the acquisitions..
         self.delta_exp = n1-n0
-        print(f'Time interval between images is {self.delta_exp} hours')
+        print(f'* Time interval between images is {self.delta_exp} hours')
         if self.delta_exp > 10:
             print('There is an issue with the time interval')
 
@@ -284,7 +294,7 @@ class STEM_CELLS(FGM):
         self.addr_files = glob.glob(glob_string)
         if 1 in debug:
             print(f'self.addr_files is {self.addr_files}')
-        print(f'Nb of images to process is {len(self.addr_files)}')
+        print(f'* Nb of images to process is {len(self.addr_files)}')
         # sort the files names with date
         self.addr_files.sort(key=lambda x: self.mdh_to_nb(x))
         # list month day hour
@@ -293,6 +303,7 @@ class STEM_CELLS(FGM):
             print(f'self.addr_files after sorting is {self.addr_files}')
         if 3 in debug:
             print(f'self.lmdh after sorting is {self.lmdh}')
+        # extract the interval of time between two images..
         self.find_time_interval()
         # Mean Background MB
         self.mb = MB(self.addr_files)
@@ -310,13 +321,14 @@ class STEM_CELLS(FGM):
 
         return img
 
-    def insert_text(self, img, txt, pos=(10, 10)):
+    def insert_text(self, img, txt, pos=(10, 10),
+                                    col=(255, 255, 255)):
         '''
         Insert text in the image
         '''
         font = cv2.FONT_HERSHEY_SIMPLEX              # font
         fontScale = 0.8
-        color = (255, 255, 255)                      # RGB when inserted
+        color = col                                  # RGB when inserted
         thickness = 2                                # Line thickness of 2 px
         img = cv2.putText(img, txt, pos, font,
                           fontScale, color, thickness, cv2.LINE_AA)
@@ -392,13 +404,17 @@ class STEM_CELLS(FGM):
 
     def correct_up(self, nbcells):
         '''
+        Only increasing function..
         '''
         nnbcells = []
         for i,c in enumerate(nbcells):
-            if i >1:
-                if c-nbcells[i-1]< 0:
+            if i > 1:
+                # if new value lower
+                if c-nbcells[i-1] < 0:
+                    # replace it with previous value..
                     nnbcells += [nbcells[i-1]]
                 else:
+                    # else keep the same value..
                     nnbcells += [c]
 
         nnbcells = np.array(nnbcells)
@@ -431,6 +447,7 @@ class STEM_CELLS(FGM):
         '''
         Find the levels using the density
         drange : density range is the intervall on which is calculated the density
+        iterat : number of iterations for making the increasing only steps..
         '''
         print('make max_density_levels')
         self.l_level = []
@@ -454,6 +471,7 @@ class STEM_CELLS(FGM):
             self.l_level += [maxind]
 
         for i in range(iterat):
+            # Correction for having an only increasing function..
             self.l_level = self.correct_up(self.l_level)
         beg_zeros = np.zeros(int(drange/2 + 2*iterat))
         self.l_level = np.concatenate((beg_zeros, self.l_level))
@@ -498,18 +516,6 @@ class STEM_CELLS(FGM):
         cv2.imwrite(opj(self.pred_folder,
                     f'img{i}_superp.png'), img_superp)
 
-    def insert_text(self, img, text, pos=(50, 50)):
-        '''
-        '''
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        fontScale = 0.4
-        color = (255, 0, 0)
-        thickness = 1
-        img = cv2.putText(img, text, pos, font,
-                           fontScale, color, thickness, cv2.LINE_AA)
-
-        return img
-
     def save_BF_with_area(self, i, cntrs_area, debug=[]):
         '''
         '''
@@ -523,8 +529,8 @@ class STEM_CELLS(FGM):
             if curr_area > 5e3:
                 area = curr_area
         txt_area = f'area = {area}'
-        img_superp_area = self.insert_text(img_superp_area, txt_area, pos=(50, 50))
-
+        img_superp_area = self.insert_text(img_superp_area, txt_area, pos=(50, 50),
+                                                                      col=(255,0,0))
         cv2.imwrite(opj(self.pred_folder,
                     f'img{i}_stem_area.png'), img_superp_area)
 
@@ -544,6 +550,7 @@ class STEM_CELLS(FGM):
 
     def save_area_with_detections(self, i, cntr_area, cntrs):
         '''
+        Area with detections inside (black crosses)
         '''
         img_cross = self.img_orig.copy()
         cv2.drawContours(img_cross, cntr_area, -1, (0, 255, 255), 1)
@@ -552,8 +559,6 @@ class STEM_CELLS(FGM):
             pt = self.pos_from_cntr(c)
             cv2.drawMarker(img_cross, (pt[0],pt[1]), color=(0,0,0),
                             markerSize=15, markerType=cv2.MARKER_CROSS, thickness=2)
-            # cv2.drawMarker(img, (256,256), color=(0,0,0),
-            #                 markerSize=15, markerType=cv2.MARKER_CROSS, thickness=1)
         cv2.imwrite(addr_fig_pos, img_cross)
 
     def save_well_pics(self, i, img, cntrs, cntrs_area):
@@ -579,11 +584,6 @@ class STEM_CELLS(FGM):
             print(f'pred[0].shape) is {pred[0].shape}')
         pred_img = pred[0]*255
         pred_img = pred_img.astype('uint8')
-
-        # try:
-        #     img_pred = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB)
-        # except:
-        #     img_pred = pred_img
 
         return pred_img
 
@@ -625,6 +625,7 @@ class STEM_CELLS(FGM):
         file_nb_cntrs = opj(self.pred_folder, f'nb_cells_max.yaml')
         with open(file_nb_cntrs, 'w') as f_w:
             yaml.dump(nb_cells_max, f_w)
+        print(f'saved nb cells max for well {self.well}')
 
     def save_scores(self, debug=[0,1]):
         '''
@@ -635,18 +636,13 @@ class STEM_CELLS(FGM):
             print(f'will save the annotation scores in {addr_scores}')
         with open(addr_scores, 'w') as f_w:
             scores = { 'ml': f'{self.curr_score_ml}',
-                       'stat': f'{self.curr_score_stat}' }
+                       'stat': f'{self.curr_score_stat}',
+                       'exp_fit_rsq':f'{self.fit_exp_rsqed}' }
+            # add those scores to the dict "all_scores"
+            self.all_scores[self.well] = scores
             yaml.dump(scores, f_w)
         if 1 in debug:
-            print('scores saved !!')
-
-    def extract_date(self, f):
-        '''
-        '''
-        nimg = opb(f)
-        ymdh = re.findall(r'\d+y\d+m\d+d_\d+h', nimg)[0]
-
-        return ymdh
+            print(f'scores saved for well {self.well} !!')
 
     def save_result_in_dict(self, kind, debug=[]):
         '''
@@ -883,6 +879,7 @@ class STEM_CELLS(FGM):
             if 0 in debug:
                 print(f'Dealing with cnt area {i}')
             # try:
+
             if cnt_area != []:
                 # area where cells are detected with debris
                 area = cv2.contourArea(cnt_area[0])
@@ -935,6 +932,16 @@ class STEM_CELLS(FGM):
         if 2 in debug:
             print(f'### self.lnbcells = {self.lnbcells}')
             print(f'### self.lnbcells_stat = {self.lnbcells_stat}')
+        # no cell before 40 hours..
+        self.corr_apriori_nocell(lim=40)
+
+    def corr_apriori_nocell(self,lim=None):
+        '''
+        Set to 1 the number of cells before time lim..
+        '''
+        cutoff = int(lim/self.delta_exp)
+        self.lnbcells [:cutoff] = [1]*cutoff
+        self.lnbcells_stat[:cutoff] = [1]*cutoff
 
     def list_of_cells_area_contours(self, img_pred_area):
         '''
@@ -976,6 +983,7 @@ class STEM_CELLS(FGM):
 
     def process_a_well(self,i,f, debug=[1,2]):
         '''
+        Make the processing for one well..
         '''
         self.dic_pos[i] = []
         print(f'current image is { f }')
@@ -1041,17 +1049,20 @@ class STEM_CELLS(FGM):
         self.lnbcells_levels = self.max_density_levels(np.array(self.lnbcells))[:len(self.lnbcells)]
         self.lnbcells_stat_levels = self.max_density_levels(np.array(self.lnbcells_stat))[:len(self.lnbcells)]
         # set 1 to 0 for comparing with the manual annotations..
-        self.lnbcells_stat_levels[self.lnbcells_stat_levels==1]=0
+        self.lnbcells_stat_levels[self.lnbcells_stat_levels==1] = 0
 
         print(f'len(self.lnbcells) = {len(self.lnbcells)}')
         # save the analyses
         self.save_result_in_dict('direct_ML')
         self.save_result_in_dict('stat')
-        self.save_nb_cells_max_in_filtered()
+        try:
+            self.save_nb_cells_max_in_filtered()
+        except:
+            print(f'Cannot save nb cells max for well {self.well}..')
         try:
             self.fit_exp_to_filtered()
         except:
-            print('Fitting an exponential failed..')
+            print(f'Fitting an exponential failed for well {self.well}..')
 
     def simple_exp(self, x, m, t, b):
         '''
@@ -1061,39 +1072,48 @@ class STEM_CELLS(FGM):
 
     def fit_exp_to_filtered(self, debug=[0]):
         '''
-        FIt an exponential on the curve of the filtered nb of cells..
+        Fit an exponential on the curve of the filtered nb of cells..
         '''
-        print('### Performing the exponential fit')
+        print('### fitting exponential..')
+        # Initialize to avoid the previous fit to be plotted..
+        self.fit_exp_curve = None
+        self.x_stat_exp_levels, self.levels_stat_exp = None, None
+        self.fit_exp_rsqed = None
+        print('expo fit init finished')
+        #
         ys = np.array(self.lnbcells_stat)
         xs = np.arange(len(ys))
 
-        # perform the fit
+        # perform the exponential fit
         p0 = (2000, .1, 0) # starting values
-        params, cv = curve_fit(self.simple_exp, xs, ys, p0)
-        m, t, b = params
+        self.params, cv = curve_fit(self.simple_exp, xs, ys, p0)
+        m, t, b = self.params
+        self.fit_exp_curve = self.simple_exp(xs, m, t, b)
+        print('fitted curve')
 
         # determine quality of the fit
-        sqdiff = np.square(ys - self.simple_exp(xs, m, t, b))
+        sqdiff = np.square(ys - self.fit_exp_curve)
         sqdiff_from_mean = np.square(ys - np.mean(ys))
-        rSquared = round(1 - np.sum(sqdiff) / np.sum(sqdiff_from_mean),3)
-        print(f"R2 = {rSquared}")
+        self.fit_exp_rsqed = round(1 - np.sum(sqdiff) / np.sum(sqdiff_from_mean),3)
+        print(f"R2 = {self.fit_exp_rsqed}")
+        print('determined the quality.. ')
 
         # plot the results
         plt.figure()
         # borders in white to see the axes legend..
         plt.rcParams["axes.edgecolor"] = "white"
         plt.plot(xs, ys, label="filtered")
-        self.fit_exp_curve = self.simple_exp(xs, m, t, b)
         # extract the levels from exponential
         self.x_stat_exp_levels, self.levels_stat_exp = self.levels_from_fit_exp()
         plt.plot(xs, self.fit_exp_curve, '--', label="fitted")
         # plot levels from exponential
         plt.plot(self.x_stat_exp_levels, self.levels_stat_exp, '-', label="levels from fit")
-        plt.title(f'Fitted Exponential Curve, R2 = {rSquared}')
+        plt.title(f'Fitted Exponential Curve, R2 = {self.fit_exp_rsqed}')
         addr_fit = opj(self.folder_results, f'exp_fit_{self.well}.png')
         plt.xlabel('time')
         plt.ylabel('nbcells')
         plt.savefig(addr_fit)
+        print('plotted and saved... ')
 
         # inspect the parameters
         print(f"Y = {round(m,2)} * e^({round(t,2)} * x) + {round(b,2)}")
@@ -1103,8 +1123,7 @@ class STEM_CELLS(FGM):
         '''
         Make the levels from the exponential curve..
         '''
-        ys = []
-        xs = []
+        xs, ys = [], []
         ll = np.floor(self.fit_exp_curve)
         for i,l in enumerate(ll):
             newl = m.floor(int(l))
@@ -1116,27 +1135,40 @@ class STEM_CELLS(FGM):
                     xs += [i]
             ys += [newl]
             xs += [i]
+
         return np.array(xs), np.array(ys)
 
     def full_list(self,ref,old_list, debug=[0]):
         '''
+        Make full signal from sparse points in the annotations
         '''
         newl = []
         for i,l in enumerate(ref):
-            if i>0:
+            if i > 0:
                 prev = ref[i-1]
                 curr = l
                 prev_val = old_list[i-1]
                 newl += [prev_val]*int((curr-prev)/self.delta_exp)
+
         return newl
+
+    def find_shift_with_annotations(self, vec_nb_cells):
+        '''
+        Find the shift between annotations and automatic extraction..
+        '''
+        m, t, b = self.params
+        # b set to 0, using the exp corrected vertically..
+        xmax = np.log((vec_nb_cells[-1])/m)/t
+        nbpts = int(xmax/self.delta_exp)
+        print(f'nb of points until last value in the exponential curve..{nbpts}')
 
     def score_with_level(self, vec_nb_cells, levels, debug=[0,1]):
         '''
         Score calculation between levels and annotations..
+        vec_nb_cells : annotations
         '''
+        self.find_shift_with_annotations(vec_nb_cells)
         vec_stat = np.array(levels)
-        # # levels at 1 put at 0 ..
-        # vec_stat[vec_stat==1]=0
         lenvec = len(vec_nb_cells)
         # adapt the length of vec_stat to length of manual annotations
         vec_stat = vec_stat[:lenvec]
@@ -1413,13 +1445,16 @@ class STEM_CELLS(FGM):
 
     def plot_exponential_and_expo_levels(self,ax):
         '''
-        Plot the exponential fit with the associtaed levels..
+        Plot the exponential fit with the associted levels..
         '''
-        ta4 = self.make_time_axis(self.fit_exp_curve)
-        ax.plot(ta4, self.fit_exp_curve, '--', label="fitted")
-        # plot levels from exponential
-        ta5 = self.make_time_axis(self.x_stat_exp_levels, just_dilate=True)
-        ax.plot(ta5, self.levels_stat_exp, '-', label="levels from exponential fit")
+        try:
+            ta4 = self.make_time_axis(self.fit_exp_curve)
+            ax.plot(ta4, self.fit_exp_curve, '--', label="fitted")
+            # plot levels from exponential
+            ta5 = self.make_time_axis(self.x_stat_exp_levels, just_dilate=True)
+            ax.plot(ta5, self.levels_stat_exp, '-', label="levels from exponential fit")
+        except:
+            print('Cannot plot the fitting exponential curve.. ')
 
     def analyse_one_well(self, well, time_range=None, name_well=True):
         '''
@@ -1428,29 +1463,37 @@ class STEM_CELLS(FGM):
         t0 = time()
         if name_well:
             print(f'current well is {well}')
-        # try:
+        try:
 
-        # list of the detected divisions
-        self.list_jumps = []
-        # list day/hours
-        self.lmdh = []
-        self.pred_folder = opj(self.folder_results, f'pred_{well}')
-        # prediction folder
-        os.mkdir(self.pred_folder)
-        # list of the images for one well
-        self.list_imgs(well=well)
-        # count the nb of cells through the pictures
-        self.count(time_range)
-        self.make_score()
-        # plot the levels found
-        self.plot_levels()
-        #
-        # except:
-        #     print(f'Cannot deal with well {well}')
+            # list of the detected divisions
+            self.list_jumps = []
+            # list day/hours
+            self.lmdh = []
+            self.pred_folder = opj(self.folder_results, f'pred_{well}')
+            # prediction folder
+            os.mkdir(self.pred_folder)
+            # list of the images for one well
+            self.list_imgs(well=well)
+            # count the nb of cells through the pictures
+            self.count(time_range)
+            self.make_score()
+            # plot the levels found
+            self.plot_levels()
+
+        except:
+            print(f'Cannot deal with well {well}')
         t1 = time()
         ttime = round((t1-t0)/60, 2)
         # time for one well..
-        print(f'time for analysis of the well {well} is {ttime}')
+        print(f'time for analysis of the well {well} is {ttime} min')
+
+    def save_all_scores(self):
+        '''
+        Save all the scores in one file..
+        '''
+        addr_all_scores = opj(self.folder_results, 'all_scores.yaml')
+        with open(addr_all_scores, 'w') as f_w:
+            yaml.dump(self.all_scores, f_w)
 
     def plot_analysis_all_wells(self):
         '''

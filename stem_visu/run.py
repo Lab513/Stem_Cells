@@ -69,7 +69,7 @@ def init_visu():
     except:
         print('No data loaded for the moment.. ')
     try:
-        send_scores()
+        send_scores('score_annot')
     except:
         print('Probably no scores.. ')
     emit('response', 'Connected')
@@ -130,22 +130,32 @@ def send_wells_list():
     emit('lwells', json.dumps(lwells))
 
 
-def send_scores(debug=[0]):
+def send_scores(kind, debug=[0]):
     '''
     Send scores
      for each well to the interface
      for determining the color of the wells
+     kind: nbcells, score_annot, exp_fit_rsq
     '''
     lwells = make_list_wells()
     dic_scores = {}
     for w in lwells:
-        addr_nbmax = f'stem_visu/static/results/pred_{w}/scores.yaml'
+        addr_scores = f'stem_visu/static/results/pred_{w}/scores.yaml'
+        scores = None
         try:
-            with open(addr_nbmax) as f_r:
+            with open(addr_scores) as f_r:
                 scores = yaml.load(f_r, Loader=yaml.FullLoader)
         except:
-            print('Probably no scores.yaml file')
-        dic_scores[w] = scores
+            print(f'Probably no scores.yaml file for well {w}')
+        if scores:
+            if kind == 'score_annot':
+                dic_scores[w] = scores['stat']
+            else:
+                dic_scores[w] = scores[kind]
+
+        else:
+            print(f'Cannot make dic_scores[w] for well {w}')
+    dic_scores['kind'] = kind
     if 0 in debug:
         print(f'dic_scores is { dic_scores }')
     emit('dic_scores', json.dumps(dic_scores))
@@ -259,7 +269,9 @@ def change_plate_kind(kind_plate):
         # send_wells_list()
         send_nb_cells_max()
     elif kind_plate == 'score_annot':
-        send_scores()
+        send_scores('score_annot')
+    elif kind_plate == 'exp_fit_rsq':
+        send_scores('exp_fit_rsq')
 
 
 @socketio.on('mess')

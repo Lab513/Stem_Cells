@@ -52,7 +52,7 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
     generateColors(col0,col1,null,3)
     // cs = chroma.scale('OrRd').padding([0.2, 0])
     // https://gka.github.io/chroma.js/#installation
-
+    $('.well_unit').css({'background-color': 'black'})
     for (const [w, nbmax] of Object.entries(dic_nb_max)) {
 
         // Color level according to the number max of cells
@@ -66,22 +66,26 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
 
   // score by well
 
+  var dic_coeff = {'score_annot':100.0, 'exp_fit_rsq':1}
+
   socket.on('dic_scores', function(dic_scores){
       var dic_score_val = JSON.parse(dic_scores)
 
       // Colorspace
-      var coeff = 100.0
-
       col0 = 0.2
       col1 = 0
       cs = chroma.scale('OrRd').padding([col0,col1])
       generateColors(col0,col1,'OrRd', 11.66)
-
-      for (const [w, values] of Object.entries(dic_score_val)) {
+      var curr_kind = dic_score_val['kind']
+      //alert(curr_kind)
+      //alert(dic_coeff[curr_kind])
+      $('.well_unit').css({'background-color': 'black'})
+      for (const [w, val] of Object.entries(dic_score_val)) {
 
          // Color level according to the score
-
-         $('#' + w).parent().css({'background-color': cs( parseFloat(values['stat'])/coeff ).toString() })
+          if (w != 'kind') {
+                  $('#' + w).parent().css({'background-color': cs( parseFloat(val)/dic_coeff[curr_kind] ).toString() })
+              }
 
        }
 

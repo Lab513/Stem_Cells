@@ -121,6 +121,7 @@ class STEM_CELLS(FGM):
 
     def extract_date(self, f):
         '''
+        Find the date
         '''
         nimg = opb(f)
         ymdh = re.findall(r'\d+y\d+m\d+d_\d+h', nimg)[0]
@@ -269,19 +270,36 @@ class STEM_CELLS(FGM):
             print(f'nb = {nb}')
         return nb
 
-    def find_time_interval(self, debug=[]):
+    def calc_step_time(self, debug=[0]):
         '''
-        Find the interval of time between the acquisitions.
         '''
         if 0 in debug:
             print(f'self.lmdh = {self.lmdh}')
+
         n1 = self.mdh_to_nb(self.lmdh[1], make_lmdh=False)
         n0 = self.mdh_to_nb(self.lmdh[0], make_lmdh=False)
+        diff = n1-n0
+        if diff > 20:
+            n1 = self.mdh_to_nb(self.lmdh[2], make_lmdh=False)
+            n0 = self.mdh_to_nb(self.lmdh[1], make_lmdh=False)
+            diff = n1-n0
         # step in hours between the acquisitions..
-        self.delta_exp = n1-n0
+        if 0 in debug:
+            print(f'n1 = {n1}, n0 = {n0}')
+        self.delta_exp = diff
+
+    def find_time_interval(self, debug=[0]):
+        '''
+        Find the interval of time between the acquisitions.
+        '''
+        self.calc_step_time()
         print(f'* Time interval between images is {self.delta_exp} hours')
         if self.delta_exp > 10:
             print('There is an issue with the time interval')
+        # save the acquisition rate..
+        addr_acq_rate = opj(self.folder_results, 'acq_rate.yaml')
+        with open(addr_acq_rate, 'w') as f_w:
+            yaml.dump(self.delta_exp, f_w)
 
     def list_imgs(self, well=None, debug=[]):
         '''
@@ -327,9 +345,9 @@ class STEM_CELLS(FGM):
         Insert text in the image
         '''
         font = cv2.FONT_HERSHEY_SIMPLEX              # font
-        fontScale = 0.8
+        fontScale = 0.5
         color = col                                  # RGB when inserted
-        thickness = 2                                # Line thickness of 2 px
+        thickness = 1                                # Line thickness of 2 px
         img = cv2.putText(img, txt, pos, font,
                           fontScale, color, thickness, cv2.LINE_AA)
         return img
@@ -637,7 +655,9 @@ class STEM_CELLS(FGM):
         with open(addr_scores, 'w') as f_w:
             scores = { 'ml': f'{self.curr_score_ml}',
                        'stat': f'{self.curr_score_stat}',
-                       'exp_fit_rsq':f'{self.fit_exp_rsqed}' }
+                       'exp_fit_rsq' : f'{self.fit_exp_rsqed}',
+                       'circ_cluster' : f'{self.circularity}',
+                       'area_cluster' : f'{self.score_area_cluster}' }
             # add those scores to the dict "all_scores"
             self.all_scores[self.well] = scores
             yaml.dump(scores, f_w)
@@ -820,6 +840,7 @@ class STEM_CELLS(FGM):
 
         for c in self.lcntrs[i]:
             pt = self.pos_from_cntr(c)
+            # inside test
             dist = cv2.pointPolygonTest(cntr, pt, False)
             if 0 in debug:
                 print(f'*** dist is {dist}')
@@ -859,15 +880,34 @@ class STEM_CELLS(FGM):
         Find the cells inside the cluster area
         '''
         print('Dealing with counting in the cluster !!!')
+        # max size cluster countour
         max_cnt = self.find_maxi_area(self.cntrs_clusters)
+        self.test_area_and_circularity(max_cnt)
         if 0 in debug:
             print(f'max_cnt is {max_cnt}')
         for i in range(len(self.lcntrs)):
             self.list_pts_inside(i, max_cnt, flip=True)
+            if 1 in debug:
+                print(f'len(self.linside) { len(self.linside) }')
             self.filtered_cntrs_stat += [self.linside]
         self.no_div_before_lim(20, self.filtered_cntrs_stat)
-        if 1 in debug:
+        if 2 in debug:
             print(f'self.filtered_cntrs_stat is {self.filtered_cntrs_stat}')
+
+    def test_area_and_circularity(self,cnt):
+        '''
+        Test if the cluster found is circular enough..
+        '''
+        ((x, y), radius) = cv2.minEnclosingCircle(cnt)
+        area_cluster = cv2.contourArea(cnt)
+        clust_mean_size = 3500
+        self.score_area_cluster = 1-abs(clust_mean_size-area_cluster)/clust_mean_size
+        area_disk = np.pi*radius**2
+        # calculation of the distance from circular shape..
+        self.circularity =  1-(area_disk-area_cluster)/area_disk
+        print(f'self.circularity {self.circularity}')
+        # score depending on distance to mean stat cluster area..
+        print(f'self.score_area_cluster {self.score_area_cluster}')
 
     def find_cntrs_in_cells_areas(self, debug=[]):
         '''
@@ -906,7 +946,15 @@ class STEM_CELLS(FGM):
                 print(f'len(self.linside) = {len(self.linside)}')
             self.no_div_before_lim(20, self.filtered_cntrs)
 
-    def filter_cntrs(self, debug=[]):
+    def debug_find_cntrs(self):
+        '''
+        '''
+        print(f'len(self.lcells_area) is {len(self.lcells_area)}')
+        print(f'self.lcells_area[:5] is {self.lcells_area[:5]}')
+        print(f'len(self.lcntrs) is {len(self.lcntrs)}')
+        print(f'self.lcntrs[:5] is {self.lcntrs[:5]}')
+
+    def filter_cntrs(self, debug=[1,2]):
         '''
         Keep only the contours cntrs inside the contour cnt..
         self.lcells_area : list of all registered cells areas (for image 0, 1 etc..)
@@ -914,15 +962,16 @@ class STEM_CELLS(FGM):
         self.filtered_cntrs = []
         self.filtered_cntrs_stat = []
         if 1 in debug:
-            print(f'len(self.lcells_area) is {len(self.lcells_area)}')
-            print(f'self.lcells_area[:5] is {self.lcells_area[:5]}')
-            print(f'len(self.lcntrs) is {len(self.lcntrs)}')
-            print(f'self.lcntrs[:5] is {self.lcntrs[:5]}')
+            self.debug_find_cntrs()
         self.find_cntrs_in_cells_areas()
-        try:
-            self.find_cntrs_in_cells_clusters()
-        except:
-            print('Cannot count the cells in the cells cluster.. ')
+
+        # try:
+
+        self.find_cntrs_in_cells_clusters()
+
+        # except:
+        #     print('Cannot count the cells in the cells cluster.. ')
+
         # nb of cells counted without filtering
         self.lnbcells_orig = [len(cnts) for cnts in self.lcntrs]
         # nb of cells after filtering
@@ -932,8 +981,9 @@ class STEM_CELLS(FGM):
         if 2 in debug:
             print(f'### self.lnbcells = {self.lnbcells}')
             print(f'### self.lnbcells_stat = {self.lnbcells_stat}')
-        # no cell before 40 hours..
-        self.corr_apriori_nocell(lim=40)
+        # no cell before 20 hours..
+        # correction on self.lnbcells and self.lnbcells_stat
+        self.corr_apriori_nocell(lim=20)
 
     def corr_apriori_nocell(self,lim=None):
         '''
@@ -1167,22 +1217,26 @@ class STEM_CELLS(FGM):
         Score calculation between levels and annotations..
         vec_nb_cells : annotations
         '''
-        self.find_shift_with_annotations(vec_nb_cells)
-        vec_stat = np.array(levels)
-        lenvec = len(vec_nb_cells)
-        # adapt the length of vec_stat to length of manual annotations
-        vec_stat = vec_stat[:lenvec]
-        print(f'len(vec_stat) { len(vec_stat) }')
-        print(f'len(vec_nb_cells) { len(vec_nb_cells) }')
-        antiscore  = np.abs(vec_stat-vec_nb_cells).sum()/sum(vec_nb_cells)
-        if 1 in debug:
-            print(f'(vec_stat-vec_nb_cells).sum() = { (vec_stat-vec_nb_cells).sum() }')
-            print(f'lenvec = {lenvec}')
-            print(f'len(vec_stat) = {len(vec_stat)}')
-            print(f'antiscore = {antiscore}')
-        # score for comparison with manual annotation..
-        curr_score = round((1-antiscore)*100,1)
-        print(f'score for ML is {curr_score}')
+        #self.find_shift_with_annotations(vec_nb_cells)
+        curr_score = 0
+        try:
+            vec_stat = np.array(levels)
+            lenvec = len(vec_nb_cells)
+            # adapt the length of vec_stat to length of manual annotations
+            vec_stat = vec_stat[:lenvec]
+            print(f'len(vec_stat) { len(vec_stat) }')
+            print(f'len(vec_nb_cells) { len(vec_nb_cells) }')
+            antiscore  = np.abs(vec_stat-vec_nb_cells).sum()/sum(vec_nb_cells)
+            if 1 in debug:
+                print(f'(vec_stat-vec_nb_cells).sum() = { (vec_stat-vec_nb_cells).sum() }')
+                print(f'lenvec = {lenvec}')
+                print(f'len(vec_stat) = {len(vec_stat)}')
+                print(f'antiscore = {antiscore}')
+            # score for comparison with manual annotation..
+            curr_score = round((1-antiscore)*100,1)
+            print(f'score for ML is {curr_score}')
+        except:
+            print('In score_with_level, Cannot calculate the score for annotation. ')
 
         return curr_score
 
@@ -1193,33 +1247,37 @@ class STEM_CELLS(FGM):
         # try:
         self.curr_score_ml = 0
         self.curr_score_stat = 0
+        self.fit_exp_rsqed = 0
+        self.circularity = 0
+        self.score_area_cluster = 0
+
+        # try:
+
+        hours, nbcells = self.retrieve_times_nb_cells(self.well)
+        if 0 in debug:
+            print(f'hours, nbcells : {hours, nbcells}')
         try:
-
-            hours, nbcells = self.retrieve_times_nb_cells(self.well)
-            if 0 in debug:
-                print(f'hours, nbcells : {hours, nbcells}')
-            try:
-                ind_nan_min = np.argwhere(np.isnan(hours)).min()
-                hours = hours[:ind_nan_min-1]
-                nbcells = nbcells[:ind_nan_min-1]
-            except:
-                print('probably no NaN')
-            lhours = sorted(list(set(hours)))
-            lnbcells = list(set(nbcells))
-            if 1 in debug:
-                print(f'len(lhours) {len(lhours)}')
-                print(f'len(lnbcells) {len(lnbcells)}')
-            print('manual results in full list format.. ')
-            vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
-            if 1 in debug:
-                print(f'In make_score, len(vec_nb_cells) is {len(vec_nb_cells)}')
-            self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
-            self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
-            # save the scores for the color in the interface
-            self.save_scores()
-
+            ind_nan_min = np.argwhere(np.isnan(hours)).min()
+            hours = hours[:ind_nan_min-1]
+            nbcells = nbcells[:ind_nan_min-1]
         except:
-            print(f'Cannot calculate the score with annotations for well {self.well}..')
+            print('probably no NaN')
+        lhours = sorted(list(set(hours)))
+        lnbcells = list(set(nbcells))
+        if 1 in debug:
+            print(f'len(lhours) {len(lhours)}')
+            print(f'len(lnbcells) {len(lnbcells)}')
+        print('manual results in full list format.. ')
+        vec_nb_cells = self.full_list(lhours,lnbcells)  # manual result
+        if 1 in debug:
+            print(f'In make_score, len(vec_nb_cells) is {len(vec_nb_cells)}')
+        self.curr_score_stat = self.score_with_level(vec_nb_cells, self.lnbcells_stat_levels)
+        self.curr_score_ml = self.score_with_level(vec_nb_cells, self.lnbcells_levels)
+        # save the scores for the color in the interface
+        self.save_scores()
+
+        # except:
+        #     print(f'Cannot calculate the scores for well {self.well}..')
 
     def ins_pic(self, fig, img, pos_size, dic_txt=None, opacity=0.8):
         '''
@@ -1463,25 +1521,25 @@ class STEM_CELLS(FGM):
         t0 = time()
         if name_well:
             print(f'current well is {well}')
-        try:
+        # try:
 
-            # list of the detected divisions
-            self.list_jumps = []
-            # list day/hours
-            self.lmdh = []
-            self.pred_folder = opj(self.folder_results, f'pred_{well}')
-            # prediction folder
-            os.mkdir(self.pred_folder)
-            # list of the images for one well
-            self.list_imgs(well=well)
-            # count the nb of cells through the pictures
-            self.count(time_range)
-            self.make_score()
-            # plot the levels found
-            self.plot_levels()
+        # list of the detected divisions
+        self.list_jumps = []
+        # list day/hours
+        self.lmdh = []
+        self.pred_folder = opj(self.folder_results, f'pred_{well}')
+        # prediction folder
+        os.mkdir(self.pred_folder)
+        # list of the images for one well
+        self.list_imgs(well=well)
+        # count the nb of cells through the pictures
+        self.count(time_range)
+        self.make_score()
+        # plot the levels found
+        self.plot_levels()
 
-        except:
-            print(f'Cannot deal with well {well}')
+        # except:
+        #     print(f'Cannot deal with well {well}')
         t1 = time()
         ttime = round((t1-t0)/60, 2)
         # time for one well..

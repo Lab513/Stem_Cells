@@ -346,7 +346,7 @@
      top: 80px;
      left: 200px;
      height: 600px;
-     width: 600px;
+     width: 620px;
      padding-left: 50px;
      padding-top: 50px;
      background-color: white;
@@ -568,6 +568,8 @@
 
   }
 
+/* Dataset */
+
   #dataset_fullname {
 
        position: absolute;
@@ -588,8 +590,17 @@
       position: absolute;
       bottom: -45px;
       right: 30px;
+      left: 700px
 
   }
+
+#dataset_name {
+
+        width: 300px;
+
+    }
+
+/* plate */
 
 #kind_plate {
 
@@ -624,7 +635,7 @@
 
     }
 
-/* Shortcuts */
+/* Shortcut keys */
 
   .key_shortcuts {
 

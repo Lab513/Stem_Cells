@@ -1,4 +1,5 @@
 max_nb_im = 0
+
 $('#curr_proc_pic').attr('src', 'static/results/pred_A2/img0.png') // default
 
 // nb max imgs
@@ -11,6 +12,17 @@ socket.on('nb_pics', function(nb_pics){
     $('#pospic').bootstrapSlider('refresh')
  })                                                     // number of images
 img_index = 0                                           // current image index
+
+
+// time step
+
+time_step = 0
+
+socket.on('time_step', function(tstep){
+
+  time_step = parseInt(tstep)
+
+})
 
 
 // Retrieve the processed wells
@@ -66,7 +78,9 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
 
   // score by well
 
-  var dic_coeff = {'score_annot':100.0, 'exp_fit_rsq':1}
+  var dic_coeff = {'score_annot':100.0,
+                   'exp_fit_rsq':1,
+                   'cluster_stat':1}
 
   socket.on('dic_scores', function(dic_scores){
       var dic_score_val = JSON.parse(dic_scores)
@@ -75,8 +89,8 @@ socket.on('dic_nb_cells_max', function(dic_nb_cells_max){
       col0 = 0.2
       col1 = 0
       cs = chroma.scale('OrRd').padding([col0,col1])
-      generateColors(col0,col1,'OrRd', 11.66)
       var curr_kind = dic_score_val['kind']
+      generateColors(col0,col1,'OrRd', dic_coeff[curr_kind]/10) // 11.66
       //alert(curr_kind)
       //alert(dic_coeff[curr_kind])
       $('.well_unit').css({'background-color': 'black'})

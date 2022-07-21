@@ -1,5 +1,7 @@
 <!-- plate kind -->
 
+<!-- <div id="curr_well_value"> -->
+
 <div id="color_scale">
 
 <script >
@@ -14,18 +16,24 @@
           var curr_cs = chroma.scale(name).padding([color1, color2])
         }
 
-    const colPal = curr_cs.colors(8)
+    const colPal = curr_cs.colors(10)
     $('#color_scale').empty()
 
-    colPal.forEach((color,i) => {
+    colPal.forEach((color, i) => {
 
       col_item = $('<div/>')
+      //var val_col = Math.round(i*coeff,1)
+      var val_col = i*coeff
+      //alert(val_col)
+      var curr_span = $('<div/>')
+      curr_span.text(val_col.toFixed(1))
       col_item.css({'background': color})
               .addClass('col_elem')
-              .append( $('<span/>').text(Math.round(i*coeff,0)) )
+              .append( curr_span.addClass('col_val') )
       $('#color_scale').append(col_item)
-
+      //$('.col_elem').children().addClass('col_val')
     })
+
   }
 
 

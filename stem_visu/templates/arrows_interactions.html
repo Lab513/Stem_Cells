@@ -1,33 +1,56 @@
-var pic_speed = 80                                                                       // speed  of image change when hovering the arrows
+// keys, interaction with keys
+
+var pic_speed = 80                                    // speed  of image change when hovering the arrows
 var pic_speed_key = 100
 chg_pic = false
-click_arr = false
+click_arr = false            // click arrow
 
 key('w', function(){
   clearInterval(img_dir)
   // alert('down')
-  if (!chg_pic){
-     change_pic(pic_speed_key, 'down')
-     chg_pic = true
-  }
-  else{
-    chg_pic = false
-  }
+
+
+        if (click_arr == false){          // move quickly..
+
+              if (!chg_pic){
+                 change_pic(pic_speed, 'down')
+                 chg_pic = true
+              }
+              else{
+                chg_pic = false
+              }
+
+             }
+        else if (click_arr == true){    // step by step
+                img_up_dwn('down')
+             }
 
  })
 
 key('x', function(){
-  clearInterval(img_dir)
-  // alert('up')
-  if (!chg_pic){
-     change_pic(pic_speed_key, 'up')
-     chg_pic = true
-  }
-  else{
-    chg_pic = false
-  }
+      clearInterval(img_dir)
+
+      //alert('click_arr ' + click_arr)
+
+      if (click_arr == false){          // move quickly..
+
+            if (!chg_pic){
+               change_pic(pic_speed, 'up')
+               chg_pic = true
+            }
+            else{
+              chg_pic = false
+            }
+
+           }
+      else if (click_arr == true){    // step by step
+              img_up_dwn('up')
+           }
+
 
  })
+
+ // pass from hover to click and reversely..
 
  key('c', function(){
 
@@ -78,7 +101,9 @@ function arrow_hover(){                                                         
 
    //------------------- Change how the images are read
 
-   $('#read_pics').on('change', function() {                            // select how images are ead (click or hover)
+   // select how images are read (click or hover)
+
+   $('#read_pics').on('change', function() {
 
        read_pic_kind = $(this).val()
        //alert(read_pic_kind)

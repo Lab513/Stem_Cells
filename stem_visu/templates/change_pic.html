@@ -20,7 +20,7 @@ var img_up_dwn = function(arg){
     if (curr_pic.match(/superp/) == null){
 
         // image index
-        
+
         img_index = curr_pic.match(/img(\d+?)\.png/)[1]
       }
     else{
@@ -40,6 +40,10 @@ var img_up_dwn = function(arg){
     // init image index indicator
 
     $('#win_num_im').text(num + '/' + max_nb_im)
+
+    // real date
+
+    $('#curr_time').text(num*time_step)
 
     //--------
 

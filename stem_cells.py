@@ -656,8 +656,9 @@ class STEM_CELLS(FGM):
             scores = { 'ml': f'{self.curr_score_ml}',
                        'stat': f'{self.curr_score_stat}',
                        'exp_fit_rsq' : f'{self.fit_exp_rsqed}',
-                       'circ_cluster' : f'{self.circularity}',
-                       'area_cluster' : f'{self.score_area_cluster}' }
+                       'circ_cluster' : f'{self.score_circularity}',
+                       'area_cluster' : f'{self.score_area_cluster}',
+                       'cluster_stat' : f'{self.score_cluster_stat}' }
             # add those scores to the dict "all_scores"
             self.all_scores[self.well] = scores
             yaml.dump(scores, f_w)
@@ -787,18 +788,23 @@ class STEM_CELLS(FGM):
                 if 2 in debug:
                     print(f'p[0], p[1] is {p[0], p[1]}')
                 lpts += [[p[0], p[1]]]
-        try:
+
             arr_pts = np.array(lpts)
+            try:
+                self.plot_pts_distrib(arr_pts)
+            except:
+                print(f'Cannot plot all the positions for well {self.well}')
             pk_addr = opj(self.folder_results, f'{self.well}_all_pts.pkl')
             pk.dump( arr_pts, open( pk_addr, "wb" ) )
             if 3 in debug:
                 print(f'arr_pts[0:20] = {arr_pts[0:20]}')
+        try:
             # Find optim gaussian mixture with correct clusters number..
             self.find_optim_gm(arr_pts)
             self.plot_optim_GM(arr_pts)
-            self.plot_pts_distrib(arr_pts)
         except:
-            print('Cannot plot the clusters..')
+            print(f'Cannot find the clusters'\
+                   f'with Gaussian Mixtures for well {self.well}')
 
     def test_img_22(self, i, cntr, pkl=False):
         '''
@@ -875,14 +881,20 @@ class STEM_CELLS(FGM):
         print(f'max_area = {max_area}')
         return max_cnt
 
-    def find_cntrs_in_cells_clusters(self, debug=[]):
+    def find_cntrs_in_cells_stat_cluster(self, debug=[]):
         '''
         Find the cells inside the cluster area
         '''
         print('Dealing with counting in the cluster !!!')
         # max size cluster countour
         max_cnt = self.find_maxi_area(self.cntrs_clusters)
+        # try:
+
         self.test_area_and_circularity(max_cnt)
+
+        # except:
+        #     print(f'Cannot test area and circularity.. ')
+
         if 0 in debug:
             print(f'max_cnt is {max_cnt}')
         for i in range(len(self.lcntrs)):
@@ -894,20 +906,42 @@ class STEM_CELLS(FGM):
         if 2 in debug:
             print(f'self.filtered_cntrs_stat is {self.filtered_cntrs_stat}')
 
-    def test_area_and_circularity(self,cnt):
+    def plot_control_circle_cluster_stat(self):
+        '''
+        Control the circle
+        '''
+        try:
+            img_clust = self.img_with_clust.copy()
+            cv2.circle(img_clust, (self.x_enclose, self.y_enclose), self.radius_enclose, (0,255,0), 1)
+            plt.imshow(img_clust)
+            plt.savefig( opj(self.folder_results,
+                             f'clusters for well{self.well} and circle.png') )
+        except:
+            print('Cannot plot the enclosing circle... ')
+
+    def test_area_and_circularity(self,cnt, debug=[0]):
         '''
         Test if the cluster found is circular enough..
         '''
-        ((x, y), radius) = cv2.minEnclosingCircle(cnt)
-        area_cluster = cv2.contourArea(cnt)
+        ((x,y), r) = cv2.minEnclosingCircle(cnt)
+        self.x_enclose, self.y_enclose, self.radius_enclose = int(x), int(y), int(r)
+        if 0 in debug:
+            print(f'self.x_enclose, self.y_enclose, self.radius_enclose')
+            print(f'{self.x_enclose, self.y_enclose, self.radius_enclose}')
+        area_cluster = round( cv2.contourArea(cnt),2 )
         clust_mean_size = 3500
-        self.score_area_cluster = 1-abs(clust_mean_size-area_cluster)/clust_mean_size
-        area_disk = np.pi*radius**2
+        size_max_area = max(clust_mean_size,area_cluster)
+        self.score_area_cluster = round( 1-abs(clust_mean_size-area_cluster)/size_max_area,2 )
+        area_disk = np.pi*self.radius_enclose**2
         # calculation of the distance from circular shape..
-        self.circularity =  1-(area_disk-area_cluster)/area_disk
-        print(f'self.circularity {self.circularity}')
+        self.score_circularity =  round( 1-(area_disk-area_cluster)/area_disk,2 )
+        print(f'self.score_circularity {self.score_circularity}')
         # score depending on distance to mean stat cluster area..
         print(f'self.score_area_cluster {self.score_area_cluster}')
+        # score cluster stat
+        self.score_cluster_stat = round((self.score_circularity + self.score_area_cluster)/2,2)
+        if 1 in debug:
+            self.plot_control_circle_cluster_stat()
 
     def find_cntrs_in_cells_areas(self, debug=[]):
         '''
@@ -954,7 +988,7 @@ class STEM_CELLS(FGM):
         print(f'len(self.lcntrs) is {len(self.lcntrs)}')
         print(f'self.lcntrs[:5] is {self.lcntrs[:5]}')
 
-    def filter_cntrs(self, debug=[1,2]):
+    def filter_cntrs(self, debug=[2]):
         '''
         Keep only the contours cntrs inside the contour cnt..
         self.lcells_area : list of all registered cells areas (for image 0, 1 etc..)
@@ -967,7 +1001,7 @@ class STEM_CELLS(FGM):
 
         # try:
 
-        self.find_cntrs_in_cells_clusters()
+        self.find_cntrs_in_cells_stat_cluster()
 
         # except:
         #     print('Cannot count the cells in the cells cluster.. ')
@@ -1066,6 +1100,8 @@ class STEM_CELLS(FGM):
         Count the number of cells in the images of given well (self.well)
         Go through all the consecutive images for this well.
         time_range : indices of the times to be processed..        '''
+        # init the scores
+        self.init_scores()
         if 0 in debug:
             print('In count !!!')
         if 1 in debug:
@@ -1113,6 +1149,16 @@ class STEM_CELLS(FGM):
             self.fit_exp_to_filtered()
         except:
             print(f'Fitting an exponential failed for well {self.well}..')
+
+    def init_scores(self):
+        '''
+        Initialize the scores
+        '''
+        self.curr_score_ml = 0
+        self.curr_score_stat = 0
+        self.fit_exp_rsqed = 0
+        self.score_circularity = 0
+        self.score_area_cluster = 0
 
     def simple_exp(self, x, m, t, b):
         '''
@@ -1245,11 +1291,7 @@ class STEM_CELLS(FGM):
         Comparison with annotations
         '''
         # try:
-        self.curr_score_ml = 0
-        self.curr_score_stat = 0
-        self.fit_exp_rsqed = 0
-        self.circularity = 0
-        self.score_area_cluster = 0
+
 
         # try:
 
@@ -1384,6 +1426,8 @@ class STEM_CELLS(FGM):
         plt.yticks(fontsize=self.fsize)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(self.format_funcy))
         plt.ylabel('number of cells', fontsize=self.fsize)
+        # max of the plot set with max of cells in the stat filtered list..
+        plt.ylim(0,max(self.lnbcells_stat))
 
     def make_time_axis(self,vec,just_dilate=False):
         '''

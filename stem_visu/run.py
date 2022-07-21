@@ -62,6 +62,7 @@ def init_visu():
     try:
         send_wells_list()
         send_nb_pics()
+        send_time_step()
         #send_nb_cells_max()
 
         send_infos()
@@ -102,6 +103,17 @@ def send_nb_pics():
     emit('nb_pics', str(nb_pics))
 
 
+def send_time_step():
+    '''
+    acq rate
+    '''
+    addr_acq_rate = f'stem_visu/static/results/acq_rate.yaml'
+    with open(addr_acq_rate) as f_r:
+        time_step = yaml.load(f_r, Loader=yaml.FullLoader)
+
+    emit('time_step', time_step)
+
+
 def make_list_wells():
     '''
     List of the processed wells
@@ -135,7 +147,9 @@ def send_scores(kind, debug=[0]):
     Send scores
      for each well to the interface
      for determining the color of the wells
-     kind: nbcells, score_annot, exp_fit_rsq
+     kind: nbcells,
+           score_annot,
+           exp_fit_rsq
     '''
     lwells = make_list_wells()
     dic_scores = {}
@@ -152,7 +166,6 @@ def send_scores(kind, debug=[0]):
                 dic_scores[w] = scores['stat']
             else:
                 dic_scores[w] = scores[kind]
-
         else:
             print(f'Cannot make dic_scores[w] for well {w}')
     dic_scores['kind'] = kind
@@ -272,6 +285,8 @@ def change_plate_kind(kind_plate):
         send_scores('score_annot')
     elif kind_plate == 'exp_fit_rsq':
         send_scores('exp_fit_rsq')
+    elif kind_plate == 'cluster_stat':
+        send_scores('cluster_stat')
 
 
 @socketio.on('mess')

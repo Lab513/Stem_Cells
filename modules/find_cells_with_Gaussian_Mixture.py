@@ -99,17 +99,18 @@ class FIND_CLUSTERS_WITH_GM():
         clouds of points with typical variance and shapes..
         '''
         print(f'draw cluster on image of size {self.img.shape}')
-        img_with_clust = np.squeeze(self.img)
-        img_with_clust = cv2.flip(img_with_clust, 0)
+        self.img_with_clust = np.squeeze(self.img)
+        self.img_with_clust = cv2.flip(self.img_with_clust, 0)
         if 0 in debug:
-            print(f'img_with_clust.shape { img_with_clust.shape }')
-            print(f'img_with_clust.min() { img_with_clust.min() }')
-            print(f'img_with_clust.max() { img_with_clust.max() }')
+            print(f'img_with_clust.shape { self.img_with_clust.shape }')
+            print(f'img_with_clust.min() { self.img_with_clust.min() }')
+            print(f'img_with_clust.max() { self.img_with_clust.max() }')
         max_cnt = self.find_maxi_cluster(self.cntrs_clusters)
-        cv2.drawContours(img_with_clust, [max_cnt], -1, (0, 255, 255), 1)
-        plt.imshow(img_with_clust)
+        cv2.drawContours(self.img_with_clust, [max_cnt], -1, (0, 255, 255), 1)
+        plt.imshow(self.img_with_clust)
         plt.savefig( opj(self.folder_results,
                          f'found clusters for well{self.well}.png') )
+
 
     def plot_pts_distrib(self, arr_pts):
         '''
@@ -132,7 +133,10 @@ class FIND_CLUSTERS_WITH_GM():
         plt.savefig(addr_fig_pos)
         print('Find the clusters from the detections')
         self.find_cluster_contour(addr_fig_pos)
-        self.draw_clusters_contours()
+        try:
+            self.draw_clusters_contours()
+        except:
+            print(f'In plot_pts_distrib, cannot draw cluster contours.. for well {self.well}')
 
     def plot_optim_GM(self, arr_pts):
         '''
